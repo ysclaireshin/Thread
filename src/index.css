@@ -1,0 +1,26 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-base: #08090A;
+  --bg-surface: #0E0F10;
+  --bg-overlay: #141517;
+  --border: rgba(255, 255, 255, 0.06);
+  --text-primary: #E8E6DC;
+  --text-secondary: #8A8880;
+  --text-muted: #4A4845;
+  --accent: #4CC9A0;
+  --accent-dim: rgba(76, 201, 160, 0.15);
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+}

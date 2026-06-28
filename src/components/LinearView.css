@@ -1,0 +1,230 @@
+.linear-view {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────── */
+.linear-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 20px 32px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.linear-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.linear-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── Scroll area ──────────────────────────────────── */
+.linear-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px 120px; /* 120px bottom pad keeps entries above the glass button */
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-overlay) transparent;
+}
+
+.linear-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.linear-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg-overlay);
+  border-radius: 2px;
+}
+
+/* ── Thread entries ───────────────────────────────── */
+.thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-top: 24px;
+}
+
+.thread-entry {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.thread-entry:last-of-type {
+  border-bottom: none;
+}
+
+.entry-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 2px;
+}
+
+.entry-date {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.entry-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.entry-content {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+/* ── Draft editor ─────────────────────────────────── */
+.draft-editor-container {
+  position: relative;
+  margin-top: 32px;
+  padding-bottom: 32px;
+}
+
+/*
+  Subtle teal ambient glow at the bottom of the draft area.
+  Gives the liquid glass refractor something bright to work with
+  on the near-black background. Kept at 6% so it's invisible
+  as an element but readable by the WebGL shader.
+*/
+.draft-editor-container::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 100px;
+  background: radial-gradient(
+    ellipse at center bottom,
+    rgba(76, 201, 160, 0.06) 0%,
+    rgba(76, 201, 160, 0.02) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.draft-editor {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  padding: 16px 0;
+  resize: none;
+  outline: none;
+}
+
+.draft-editor::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── CSS fallback for Save My Place (WebGL miss) ──── */
+.save-btn-fallback {
+  background: rgba(76, 201, 160, 0.08);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border: 1px solid rgba(76, 201, 160, 0.15);
+  border-top: 1px solid rgba(76, 201, 160, 0.25);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 8px 32px rgba(0, 0, 0, 0.5);
+  color: #e8e6dc;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 8px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.save-btn-fallback:hover {
+  background: rgba(76, 201, 160, 0.12);
+  border-color: rgba(76, 201, 160, 0.25);
+}
+
+/* ── Modal ────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 360px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.modal-excerpt {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.modal-close {
+  align-self: flex-end;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.modal-close:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}

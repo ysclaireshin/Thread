@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/thread.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thread</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- liquid-glass-js library -->
+    <script src="https://cdn.jsdelivr.net/gh/dashersw/liquid-glass-js/src/container.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/dashersw/liquid-glass-js/src/button.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/dashersw/liquid-glass-js/src/glass.css" />
+
+    <!-- Dark-background shader uniforms — must load after the library, before any glass init -->
+    <script>
+      window.glassControls = {
+        // Blur is the primary readable cue on dark — no color contrast to work with
+        blurRadius: 18.0,
+
+        // Edge refraction is the most visible part on dark backgrounds
+        edgeIntensity: 0.08,
+
+        // Rim highlight defines the pill shape on dark surfaces
+        rimIntensity: 0.18,
+
+        // Keep center warp low — dark center = invisible anyway
+        baseIntensity: 0.008,
+
+        edgeDistance: 0.12,
+        rimDistance: 0.6,
+        baseDistance: 0.08,
+
+        // Corner boost helps define the shape
+        cornerBoost: 0.06,
+
+        // Subtle surface texture
+        rippleEffect: 0.04,
+      }
+    </script>
+  </body>
+</html>
