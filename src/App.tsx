@@ -1,0 +1,33 @@
+import { Topbar } from './components/Topbar'
+import { SolarSystem } from './components/SolarSystem'
+import { SidePanel } from './components/SidePanel'
+import { LinearView } from './components/LinearView'
+import { MapView } from './components/MapView'
+import { useStore } from './store'
+
+export default function App() {
+  const viewMode = useStore(s => s.viewMode)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--canvas)', color: 'var(--text-primary)', overflow: 'hidden' }}>
+      <Topbar onAddNode={() => {}} />
+      <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {viewMode === 'system' ? (
+          <>
+            <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+              <SolarSystem />
+              <SidePanel />
+            </div>
+            <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', pointerEvents: 'none', fontFamily: 'var(--font-mono)', letterSpacing: '0.03em' }}>
+              scroll to zoom · click object to inspect · click planet to focus
+            </div>
+          </>
+        ) : viewMode === 'linear' ? (
+          <LinearView />
+        ) : (
+          <MapView />
+        )}
+      </div>
+    </div>
+  )
+}

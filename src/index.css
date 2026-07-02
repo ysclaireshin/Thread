@@ -1,0 +1,204 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
+@theme {
+  --font-sans: 'Geist', -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+}
+
+:root {
+  --canvas:     #08090A;
+  --surface-1:  #0F1011;
+  --surface-2:  #141516;
+  --surface-3:  #1C1D1F;
+  --surface-4:  #232425;
+
+  --border:        #232425;
+  --border-subtle: #1A1B1C;
+
+  --text-primary:   #E8E6DC;
+  --text-secondary: #9A9893;
+  --text-tertiary:  #5C5B58;
+  --text-disabled:  #3A3938;
+  --text-inverted:  #08090A;
+
+  --core:        #4CC9A0;
+  --core-dim:    #0D2B22;
+  --core-mid:    #1A4A3A;
+
+  --tension:     #E06B5A;
+  --tension-dim: #2A100D;
+  --tension-mid: #4A1F1A;
+
+  --open:        #E8A84A;
+  --open-dim:    #2A1D08;
+  --open-mid:    #4A3010;
+
+  --source:      #4A4946;
+  --source-dim:  #18181A;
+
+  --sun:         #F5B944;
+  --sun-glow:    rgba(245, 185, 68, 0.12);
+
+  --font-mono: 'Geist Mono', monospace;
+  --font-sans: 'Geist', -apple-system, sans-serif;
+
+  --text-10: 10px;
+  --text-11: 11px;
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;
+
+  --sp-1:  4px;
+  --sp-2:  8px;
+  --sp-3:  12px;
+  --sp-4:  16px;
+  --sp-5:  20px;
+  --sp-6:  24px;
+  --sp-8:  32px;
+  --sp-10: 40px;
+
+  --topbar-height:     40px;
+  --greeting-height:   52px;
+  --outline-row-min:   64px;
+  --session-divider-h: 32px;
+  --accent-bar-width:  2px;
+
+  --radius-sm:   3px;
+  --radius-md:   5px;
+  --radius-lg:   8px;
+  --radius-none: 0px;
+
+  --transition-fast: 120ms ease;
+  --transition-med:  200ms ease;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  width: 100%;
+  height: 100vh;
+}
+
+#root { display: flex; flex-direction: column; }
+
+::selection {
+  background: var(--core-mid);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+*:focus-visible {
+  outline: 1px solid var(--core);
+  outline-offset: 2px;
+}
+
+.topbar-brand-glow {
+  position: relative;
+}
+
+.topbar-brand-glow::before {
+  content: '';
+  position: absolute;
+  inset: -8px -20px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(76, 201, 160, 0.07) 0%,
+    rgba(76, 201, 160, 0.02) 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.draft-editor-container::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 100px;
+  background: radial-gradient(
+    ellipse at center bottom,
+    rgba(76, 201, 160, 0.06) 0%,
+    rgba(76, 201, 160, 0.02) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes pulse-accent {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1.0; }
+}
+
+@keyframes comet-pulse {
+  0%, 100% { opacity: 0.8; }
+  50%       { opacity: 1.0; }
+}
+
+@keyframes liquid-morph {
+  0%   { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25%  { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50%  { border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%; }
+  75%  { border-radius: 60% 40% 60% 30% / 70% 30% 40% 60%; }
+  100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+}
+
+@keyframes liquid-hue {
+  0%, 100% { background: #F5B944; box-shadow: 0 0 8px rgba(245,185,68,0.5), 0 0 16px rgba(245,185,68,0.2); }
+  33%       { background: #F5902A; box-shadow: 0 0 10px rgba(245,144,42,0.6), 0 0 20px rgba(245,144,42,0.2); }
+  66%       { background: #F5D84A; box-shadow: 0 0 10px rgba(245,216,74,0.5), 0 0 20px rgba(245,216,74,0.2); }
+}
