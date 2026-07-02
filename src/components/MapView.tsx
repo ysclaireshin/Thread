@@ -9,7 +9,7 @@ import {
   type SimulationLinkDatum,
 } from 'd3-force'
 import { useStore } from '../store'
-import type { ThreadNode } from '../types'
+import type { ThreadNode, Relationship } from '../types'
 import { SidePanel } from './SidePanel'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -23,6 +23,17 @@ interface GraphNode extends SimulationNodeDatum {
 
 interface GraphLink extends SimulationLinkDatum<GraphNode> {
   id: string
+  relationship: Relationship | null
+}
+
+// Relationships exposed in the connect picker today. depends_on / supersedes
+// exist in the type and are handled fine if present in data, but are
+// available-but-unshipped — no UI offers them yet (open product decision).
+type PickableRelationship = 'supports' | 'challenges'
+
+const RELATIONSHIP_STYLE: Record<PickableRelationship, { color: string; dashed: boolean }> = {
+  supports: { color: '#4CC9A0', dashed: false },
+  challenges: { color: '#E06B5A', dashed: true },
 }
 
 // Opacity falls off with sessions since the node was last touched.
@@ -50,7 +61,7 @@ function GraphCanvas({
   nodes: GraphNode[]
   links: GraphLink[]
   onNodeClick: (id: string) => void
-  onCreateEdge: (fromId: string, toId: string) => void
+  onCreateEdge: (fromId: string, toId: string, relationship: PickableRelationship) => void
   hoveredId: string | null
   setHoveredId: (id: string | null) => void
   selectedId: string | null
@@ -70,6 +81,8 @@ function GraphCanvas({
   // Shift-click connecting state
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+  // Second node has been picked; relationship picker is open, edge not created yet.
+  const [pendingConnection, setPendingConnection] = useState<{ fromId: string; toId: string } | null>(null)
 
   // Build connected sets for hover highlighting
   const connectedTo = useCallback((id: string): Set<string> => {
@@ -102,6 +115,7 @@ function GraphCanvas({
       if (e.key === 'Escape') {
         setConnectingFrom(null)
         setCursorPos(null)
+        setPendingConnection(null)
       }
     }
     const onKeyUp = (e: KeyboardEvent) => {
@@ -208,6 +222,11 @@ function GraphCanvas({
 
   const onMouseDownCanvas = (e: React.MouseEvent<SVGSVGElement>) => {
     if ((e.target as Element).tagName === 'text') return
+    if (pendingConnection) {
+      // Click on background cancels the pending relationship pick — no edge created
+      setPendingConnection(null)
+      return
+    }
     if (connectingFrom) {
       // Click on background cancels connecting mode
       setConnectingFrom(null)
@@ -296,8 +315,19 @@ function GraphCanvas({
     setTimeout(() => setResetTransition(false), 320)
   }
 
+  // A connection already exists between these two nodes (either direction).
+  const isAlreadyConnected = useCallback((a: string, b: string): boolean =>
+    links.some(l => {
+      const src = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source as string
+      const tgt = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target as string
+      return (src === a && tgt === b) || (src === b && tgt === a)
+    }), [links])
+
   const handleNodeMouseDown = (e: React.MouseEvent, node: GraphNode) => {
     e.stopPropagation()
+
+    // Relationship picker is open — ignore other node interactions until resolved
+    if (pendingConnection) return
 
     // Shift held: connection mode only, no drag
     if (isShiftHeldRef.current || e.shiftKey) {
@@ -308,8 +338,13 @@ function GraphCanvas({
         // Same node: cancel
         setConnectingFrom(null)
         setCursorPos(null)
+      } else if (isAlreadyConnected(connectingFrom, node.id)) {
+        // Nothing to pick a relationship for — cancel, matching prior no-op behavior
+        setConnectingFrom(null)
+        setCursorPos(null)
       } else {
-        onCreateEdge(connectingFrom, node.id)
+        // Don't create the edge yet — show the relationship picker first
+        setPendingConnection({ fromId: connectingFrom, toId: node.id })
         setConnectingFrom(null)
         setCursorPos(null)
       }
@@ -317,10 +352,15 @@ function GraphCanvas({
     }
 
     if (connectingFrom && connectingFrom !== node.id) {
-      // Second click without shift still completes the connection
-      onCreateEdge(connectingFrom, node.id)
-      setConnectingFrom(null)
-      setCursorPos(null)
+      // Second click without shift still initiates the same picker flow
+      if (isAlreadyConnected(connectingFrom, node.id)) {
+        setConnectingFrom(null)
+        setCursorPos(null)
+      } else {
+        setPendingConnection({ fromId: connectingFrom, toId: node.id })
+        setConnectingFrom(null)
+        setCursorPos(null)
+      }
       return
     }
 
@@ -347,7 +387,17 @@ function GraphCanvas({
   const neighbors = hoveredId ? connectedTo(hoveredId) : null
   const connectingFromPos = connectingFrom ? positions.get(connectingFrom) : null
 
+  const pendingPosA = pendingConnection ? positions.get(pendingConnection.fromId) : null
+  const pendingPosB = pendingConnection ? positions.get(pendingConnection.toId) : null
+
+  const choosePending = (relationship: PickableRelationship) => {
+    if (!pendingConnection) return
+    onCreateEdge(pendingConnection.fromId, pendingConnection.toId, relationship)
+    setPendingConnection(null)
+  }
+
   return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
     <svg
       ref={svgRef}
       style={{
@@ -389,21 +439,29 @@ function GraphCanvas({
           const isHighlighted = hoveredId && (src === hoveredId || tgt === hoveredId)
           const isDimmed = hoveredId && !isHighlighted
 
+          // supports/challenges get a dedicated color + dash treatment; every
+          // other relationship (null, or unshipped types like depends_on)
+          // keeps the existing neutral styling.
+          const relStyle = link.relationship === 'supports' || link.relationship === 'challenges'
+            ? RELATIONSHIP_STYLE[link.relationship]
+            : null
+
+          const stroke = relStyle ? relStyle.color : '#FFFFFF'
+          const strokeOpacity = relStyle
+            ? (isDimmed ? 0.15 : isHighlighted ? 0.95 : 0.65)
+            : (isHighlighted ? 0.5 : isDimmed ? 0.03 : 0.18)
+
           return (
             <path
               key={link.id}
               d={`M ${posA.x} ${posA.y} Q ${cx} ${cy} ${posB.x} ${posB.y}`}
-              stroke={
-                isHighlighted
-                  ? 'rgba(255,255,255,0.5)'
-                  : isDimmed
-                  ? 'rgba(255,255,255,0.03)'
-                  : 'rgba(255,255,255,0.18)'
-              }
+              stroke={stroke}
+              strokeOpacity={strokeOpacity}
               strokeWidth={isHighlighted ? 1.0 : 0.7}
+              strokeDasharray={relStyle?.dashed ? '5 4' : undefined}
               fill="none"
               strokeLinecap="round"
-              style={{ transition: 'stroke 150ms ease, stroke-width 150ms ease' }}
+              style={{ transition: 'stroke 150ms ease, stroke-width 150ms ease, stroke-opacity 150ms ease' }}
             />
           )
         })}
@@ -480,6 +538,69 @@ function GraphCanvas({
         })}
       </g>
     </svg>
+
+    {/* Inline relationship picker — appears at the connection midpoint after the
+        second node is picked. Not a modal: clicking the background or pressing
+        Escape cancels with no edge created. */}
+    {pendingConnection && pendingPosA && pendingPosB && (() => {
+      const midX = ((pendingPosA.x + pendingPosB.x) / 2) * transform.k + transform.x
+      const midY = ((pendingPosA.y + pendingPosB.y) / 2) * transform.k + transform.y
+      return (
+        <div
+          style={{
+            position: 'absolute',
+            left: midX,
+            top: midY,
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            gap: '6px',
+            background: 'var(--surface-2, #141516)',
+            border: '1px solid var(--border, #232425)',
+            borderRadius: '8px',
+            padding: '5px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.45)',
+            zIndex: 50,
+          }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <button
+            onClick={() => choosePending('supports')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'none',
+              border: '1px solid rgba(76,201,160,0.4)',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans, Geist, sans-serif)',
+              fontSize: '11px',
+              color: '#4CC9A0',
+            }}
+          >
+            <span style={{ display: 'inline-block', width: '12px', height: 0, borderTop: '1.5px solid #4CC9A0' }} />
+            supports
+          </button>
+          <button
+            onClick={() => choosePending('challenges')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'none',
+              border: '1px solid rgba(224,107,90,0.4)',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans, Geist, sans-serif)',
+              fontSize: '11px',
+              color: '#E06B5A',
+            }}
+          >
+            <span style={{ display: 'inline-block', width: '12px', height: 0, borderTop: '1.5px dashed #E06B5A' }} />
+            challenges
+          </button>
+        </div>
+      )
+    })()}
+    </div>
   )
 }
 
@@ -505,7 +626,7 @@ export function MapView() {
         activeNodes.some(n => n.id === e.from_id) &&
         activeNodes.some(n => n.id === e.to_id)
       )
-      .map(e => ({ id: e.id, source: e.from_id, target: e.to_id })),
+      .map(e => ({ id: e.id, source: e.from_id, target: e.to_id, relationship: e.relationship })),
     [edges, activeNodes.map(n => n.id).join(',')]
   )
 
@@ -513,6 +634,8 @@ export function MapView() {
     setSelected(selectedId === id ? null : id)
   }
 
+  // Used by the SidePanel's "Connect to…" list — unrelated to the Shift-click
+  // picker flow, left as-is: creates an unclassified (null) edge directly.
   function handleCreateEdge(fromId: string, toId: string) {
     // Deduplicate before adding
     const alreadyExists = edges.some(e =>
@@ -525,6 +648,22 @@ export function MapView() {
       from_id: fromId,
       to_id: toId,
       relationship: null,
+      provenance: 'human',
+    })
+  }
+
+  // Used by the Shift-click canvas flow, after the relationship picker resolves.
+  function handleCreateEdgeWithRelationship(fromId: string, toId: string, relationship: 'supports' | 'challenges') {
+    const alreadyExists = edges.some(e =>
+      (e.from_id === fromId && e.to_id === toId) ||
+      (e.from_id === toId && e.to_id === fromId)
+    )
+    if (alreadyExists) return
+    addEdge({
+      id: `e-${Date.now()}`,
+      from_id: fromId,
+      to_id: toId,
+      relationship,
       provenance: 'human',
     })
   }
@@ -567,7 +706,7 @@ export function MapView() {
           nodes={graphNodes}
           links={graphLinks}
           onNodeClick={handleNodeClick}
-          onCreateEdge={handleCreateEdge}
+          onCreateEdge={handleCreateEdgeWithRelationship}
           hoveredId={hoveredId}
           setHoveredId={setHoveredId}
           selectedId={selectedId}
