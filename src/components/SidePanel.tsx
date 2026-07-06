@@ -202,21 +202,18 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
                 onClick={() => updateNode(node.id, { confidence: i, last_reinforced_at: new Date().toISOString() })}
                 title={i === 1 ? 'Rough' : i === 2 ? 'Fine' : 'Confirmed'}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '3px',
                   background: confidence === i ? 'var(--surface-3)' : 'none',
                   border: `1px solid ${confidence === i ? 'var(--border)' : 'var(--border-subtle)'}`,
                   borderRadius: 'var(--radius-sm)',
                   padding: '3px 10px',
                   cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-12)',
+                  color: confidence === i ? 'var(--text-secondary)' : 'var(--text-disabled)',
                   transition: 'all var(--transition-fast)',
                 }}
               >
-                {[1, 2, 3].map(d => (
-                  <span key={d} style={{
-                    display: 'inline-block', width: '3px', height: '3px', borderRadius: '1px',
-                    background: d <= i ? 'var(--text-secondary)' : 'var(--surface-4)',
-                  }} />
-                ))}
+                {i}
               </button>
             ))}
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-tertiary)' }}>

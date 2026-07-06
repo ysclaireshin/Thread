@@ -192,17 +192,14 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                     border: `1px solid ${confidence === v ? 'var(--border)' : 'var(--border-subtle)'}`,
                     background: confidence === v ? 'var(--surface-3)' : 'var(--surface-2)',
                     cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--text-12)',
+                    color: confidence === v ? 'var(--text-secondary)' : 'var(--text-disabled)',
                     transition: 'all var(--transition-fast)',
                   }}
                   title={confidenceLabels[v]}
                 >
-                  {[1, 2, 3].map(d => (
-                    <span key={d} style={{
-                      display: 'inline-block', width: '3px', height: '3px', borderRadius: '1px',
-                      background: d <= v ? 'var(--text-secondary)' : 'var(--surface-4)',
-                    }} />
-                  ))}
+                  {v}
                 </button>
               ))}
             </div>
