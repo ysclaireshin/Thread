@@ -350,6 +350,8 @@ function extractProject(s: Store): ThreadProject {
 }
 
 useStore.subscribe((s) => {
+  console.log("SUBSCRIBE FIRED", s.nodes.length)
+
   saveAll(s)
 
   saveProject({
