@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export async function saveProject(project: any) {
+  console.log('Saving to Supabase:', project.id, project.nodes.length)
   // Save project
   const { error: projectError } = await supabase
     .from('projects')
