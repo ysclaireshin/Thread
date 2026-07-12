@@ -284,7 +284,19 @@ export const useStore = create<Store>((set, get) => {
         createdAt: newNode.last_reinforced_at,
         createdWithFocus: newNode.createdWithFocus,
       })
-      return { nodes: [...s.nodes, newNode] }
+      const updatedNodes = [...s.nodes, newNode]
+
+saveProject({
+  id: s.projectId,
+  name: s.projectName,
+  thesis: s.thesis,
+  nodes: updatedNodes,
+  edges: s.edges,
+  textAnchors: s.textAnchors,
+  currentSession: s.currentSession,
+})
+
+return { nodes: updatedNodes }
     }),
 
     updateNode: (id, patch) =>
