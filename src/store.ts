@@ -3,6 +3,8 @@ import type { ThreadNode, ThreadEdge, ThreadProject, TextAnchor, Provenance } fr
 import { SEED } from './data/seed'
 import { saveProject } from './supabaseSync'
 
+console.log("NEW STORE VERSION LOADED")
+
 const V3_KEY = 'thread_v3'
 
 // ─── Migration helpers ────────────────────────────────────────────────────────
