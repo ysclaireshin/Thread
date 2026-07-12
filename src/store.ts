@@ -1,3 +1,4 @@
+import { supabase } from './supabaseSync'
 import { create } from 'zustand'
 import type { ThreadNode, ThreadEdge, ThreadProject, TextAnchor, Provenance } from './types'
 import { SEED } from './data/seed'
@@ -349,3 +350,45 @@ function extractProject(s: Store): ThreadProject {
 }
 
 useStore.subscribe((s) => saveAll(s))
+useStore.subscribe(async (state) => {
+  const project = {
+    id: state.projectId,
+    title: state.thesis || state.projectName,
+    updated_at: new Date().toISOString(),
+  }
+
+  await supabase
+    .from('projects')
+    .upsert(project)
+
+  const nodes = state.nodes.map(n => ({
+    id: n.id,
+    project_id: state.projectId,
+    type: n.organizer,
+    label: n.label,
+    description: n.description,
+    provenance: n.provenance,
+    session_index: n.session_id,
+  }))
+
+  if (nodes.length) {
+    await supabase
+      .from('nodes')
+      .upsert(nodes)
+  }
+
+  const edges = state.edges.map(e => ({
+    id: e.id,
+    project_id: state.projectId,
+    from_id: e.from_id,
+    to_id: e.to_id,
+    relationship: e.relationship,
+    provenance: e.provenance,
+  }))
+
+  if (edges.length) {
+    await supabase
+      .from('edges')
+      .upsert(edges)
+  }
+})
