@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { ThreadNode, ThreadEdge, ThreadProject, TextAnchor, Provenance } from './types'
 import { SEED } from './data/seed'
-import { saveProject } from './supabaseSync'
+import { saveProject } from './lib/supabaseSync'
 
 console.log("NEW STORE VERSION LOADED")
 
