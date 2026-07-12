@@ -33,7 +33,7 @@ function migrateEdge(e: any): ThreadEdge {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateProject(p: any): ThreadProject {
   return {
-    id: (p.id as string) ?? `proj-${Date.now()}`,
+    id: (p.id as string) ?? crypto.randomUUID(),
     name: (p.name as string) ?? 'My project',
     thesis: (p.thesis as string) ?? '',
     nodes: ((p.nodes ?? []) as unknown[]).map(n => migrateNode(n)),
@@ -48,7 +48,7 @@ function migrateProject(p: any): ThreadProject {
 
 function blankProject(name: string): ThreadProject {
   return {
-    id: `proj-${Date.now()}`,
+    id: crypto.randomUUID(),
     name,
     thesis: '',
     nodes: [],
