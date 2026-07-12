@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread — Pick up exactly where your thinking left off</title>
+<style>
+/* ── Fonts (embedded, self-contained) ─────────────────────────────────── */
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_400@@) format('woff2'); font-weight:400; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_500@@) format('woff2'); font-weight:500; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_600@@) format('woff2'); font-weight:600; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist Mono'; src:url(data:font/woff2;base64,@@MONO_400@@) format('woff2'); font-weight:400; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist Mono'; src:url(data:font/woff2;base64,@@MONO_500@@) format('woff2'); font-weight:500; font-style:normal; font-display:block; }
+
+/* ── Tokens (Thread design system) ────────────────────────────────────── */
+:root {
+  --canvas:     #08090A;
+  --surface-1:  #0F1011;
+  --surface-2:  #141516;
+  --surface-3:  #1C1D1F;
+  --border:        #232425;
+  --border-subtle: #1A1B1C;
+  --text-primary:   #E8E6DC;
+  --text-secondary: #9A9893;
+  --text-tertiary:  #5C5B58;
+  --text-inverted:  #08090A;
+  --core:    #4CC9A0;
+  --tension: #E06B5A;
+  --open:    #E8A84A;
+  --sun:     #F5B944;
+  --cluster-y: #E8C547;
+  --font-sans: 'Geist', -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+html { scroll-behavior: auto; }
+html, body {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background:#1A4A3A; color:var(--text-primary); }
+*:focus-visible { outline:1px solid var(--core); outline-offset:2px; }
+
+/* ── Fixed chrome: brand, progress bar, glow, stars ───────────────────── */
+.progress {
+  position: fixed; top:0; left:0; z-index:60;
+  width:100%; height:2px;
+  background: var(--core);
+  opacity:.55;
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events:none;
+}
+.brand {
+  position: fixed;
+  top:26px; left:min(6vw,72px);
+  z-index:50;
+  display:flex; align-items:center; gap:7px;
+}
+.brand span {
+  font-family:var(--font-sans); font-weight:600; font-size:14px;
+  letter-spacing:-0.02em; color:var(--text-primary);
+}
+.stars, .stars-lg {
+  position: fixed; left:50%; top:50%;
+  border-radius:50%; background:transparent;
+  z-index:0; pointer-events:none;
+  will-change: transform;
+}
+.stars    { width:2px; height:2px; box-shadow: @@STARS_SM@@; }
+.stars-lg { width:3px; height:3px; box-shadow: @@STARS_LG@@; }
+#glow {
+  position: fixed; left:0; top:0;
+  width:860px; height:860px; border-radius:50%;
+  background: radial-gradient(circle, rgba(245,185,68,0.09) 0%, rgba(245,185,68,0.03) 42%, transparent 70%);
+  transform: translate3d(60vw,45vh,0) translate(-50%,-50%);
+  pointer-events:none; will-change:transform; z-index:0;
+}
+
+/* ══ SECTION 1 — pinned hero scene: sun alone → full system + content ══ */
+.scene { position:relative; height:300vh; }
+.stage {
+  position:sticky; top:0;
+  height:100vh; overflow:hidden;
+  display:flex; align-items:center;
+}
+
+/* Solar system */
+.system-wrap {
+  position:absolute; z-index:2;
+  top:50%; right:max(2.5vw,24px);
+  transform: translateY(-50%);
+}
+.system {
+  position:relative;
+  width:min(50vw, 84vh, 700px);
+  aspect-ratio:1;
+  container-type:size;
+}
+.ring, .orbit {
+  position:absolute; left:50%; top:50%;
+  width:calc(var(--r)*2); height:calc(var(--r)*2);
+  margin-left:calc(var(--r)*-1); margin-top:calc(var(--r)*-1);
+  border-radius:50%;
+}
+.ring { border:1px solid rgba(35,36,37,0.9); opacity:var(--sysop,0); }
+/* Same period for every body: the configuration rotates rigidly, so
+   label spacing chosen at load can never drift into collision. */
+.orbit { animation:spin 240s linear infinite; animation-delay:var(--d); opacity:var(--sysop,0); }
+.holder {
+  position:absolute; left:100%; top:50%; width:0; height:0;
+  animation:spinrev 240s linear infinite; animation-delay:var(--d);
+}
+/* .arm rotates with the orbit (no counter-spin): its local +x axis always
+   points radially outward, so the comet tail keeps facing away from the sun */
+.arm { position:absolute; left:100%; top:50%; width:0; height:0; }
+@keyframes spin    { to { transform:rotate(1turn); } }
+@keyframes spinrev { to { transform:rotate(-1turn); } }
+
+/* Sun = main idea. Design E: shape morphs while colour breathes. */
+#sun-anchor { position:absolute; left:50%; top:50%; width:0; height:0; }
+.sun {
+  position:absolute; left:50%; top:50%;
+  width:46px; height:46px;
+  transform: translate(-50%,-50%);
+  will-change: transform;
+  animation: liquid-morph 12s ease-in-out infinite, liquid-hue 9s ease-in-out infinite;
+  z-index:3;
+}
+@keyframes liquid-morph {
+  0%   { border-radius:60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25%  { border-radius:30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50%  { border-radius:50% 60% 30% 60% / 30% 60% 70% 40%; }
+  75%  { border-radius:60% 40% 60% 30% / 70% 30% 40% 60%; }
+  100% { border-radius:60% 40% 30% 70% / 60% 30% 70% 40%; }
+}
+@keyframes liquid-hue {
+  0%, 100% { background:#F5B944; box-shadow:0 0 18px rgba(245,185,68,0.5), 0 0 44px rgba(245,185,68,0.22), 0 0 110px rgba(245,185,68,0.10); }
+  33%       { background:#F5902A; box-shadow:0 0 22px rgba(245,144,42,0.55), 0 0 52px rgba(245,144,42,0.22), 0 0 110px rgba(245,144,42,0.10); }
+  66%       { background:#F5D84A; box-shadow:0 0 22px rgba(245,216,74,0.5), 0 0 52px rgba(245,216,74,0.22), 0 0 110px rgba(245,216,74,0.10); }
+}
+
+.planet {
+  position:absolute; width:26px; height:26px;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background: radial-gradient(circle at 36% 36%, var(--hi), var(--c));
+  box-shadow: 0 0 22px 6px var(--halo);
+}
+.asteroid-glow { position:absolute; transform:translate(-50%,-50%); filter:drop-shadow(0 0 10px rgba(224,107,90,0.45)); }
+.asteroid {
+  width:18px; height:18px; background:var(--tension);
+  clip-path: polygon(50% 0%, 84% 16%, 100% 52%, 80% 88%, 42% 100%, 10% 78%, 0% 40%, 20% 10%);
+}
+.comet-body {
+  position:absolute; width:15px; height:15px;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background:var(--open);
+  box-shadow: 0 0 0 5px rgba(232,168,74,0.08), 0 0 14px 3px rgba(232,168,74,0.30);
+}
+.comet-body::after {
+  content:''; position:absolute; inset:-5px; border-radius:50%;
+  border:1px solid rgba(232,168,74,0.3);
+}
+.comet-tail {
+  position:absolute; left:10px; top:-1.5px;
+  width:56px; height:3px; border-radius:2px;
+  background: linear-gradient(90deg, rgba(232,168,74,0.55), rgba(232,168,74,0.22) 40%, transparent);
+}
+.comet-tail.thin {
+  top:3px; width:38px; height:1.5px;
+  transform:rotate(9deg); transform-origin:left center;
+  background: linear-gradient(90deg, rgba(232,168,74,0.18), transparent);
+}
+
+/* Orbital labels — Geist, primary text, always legible */
+.tag {
+  position:absolute; left:0; top:var(--ty,18px);
+  transform:translateX(-50%);
+  text-align:center; white-space:nowrap;
+  font-family:var(--font-sans); line-height:1.45;
+  opacity:var(--labop,0);
+  text-shadow: 0 1px 8px rgba(8,9,10,0.95), 0 0 3px rgba(8,9,10,0.9);
+}
+.tag .cat { display:block; font-size:10px; font-weight:500; letter-spacing:0.02em; color:var(--c); }
+.tag .txt { display:block; font-size:12px; font-weight:400; color:var(--text-primary); }
+.sun-tag {
+  position:absolute; left:50%; top:calc(50% + 34px);
+  transform:translateX(-50%);
+  text-align:center; white-space:nowrap;
+  font-family:var(--font-sans); line-height:1.45;
+  opacity:var(--labop,0);
+  text-shadow: 0 1px 8px rgba(8,9,10,0.95);
+}
+.sun-tag .cat { display:block; font-size:10px; font-weight:500; letter-spacing:0.02em; color:var(--sun); }
+.sun-tag .txt { display:block; font-size:12px; color:var(--text-primary); }
+
+/* Intro-phase furniture */
+.intro-tag {
+  position:absolute; left:50%; top:calc(50% + 150px);
+  transform:translateX(-50%);
+  font-family:var(--font-sans); font-size:16px; font-weight:400;
+  color:var(--text-secondary); white-space:nowrap;
+  z-index:4;
+}
+.scroll-hint {
+  position:absolute; left:50%; bottom:34px;
+  transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);
+  z-index:4;
+}
+.scroll-hint i {
+  display:block; width:1px; height:34px;
+  background: linear-gradient(180deg, transparent, var(--text-secondary));
+  animation: hintdrop 1.8s ease-in-out infinite;
+}
+@keyframes hintdrop {
+  0%   { transform:scaleY(0); transform-origin:top; opacity:0; }
+  40%  { transform:scaleY(1); transform-origin:top; opacity:1; }
+  100% { transform:scaleY(0); transform-origin:bottom; opacity:.4; }
+}
+
+/* Hero content column — placed on the 46% line, deliberate mass */
+.content {
+  position:relative; z-index:3;
+  max-width:860px;
+  padding: 0 min(6vw,96px);
+  align-self:center;
+  transform: translateY(-2vh);
+  visibility:hidden;
+}
+.content.in { visibility:visible; }
+h1 {
+  font-size: clamp(36px, 3.6vw + 10px, 62px);
+  font-weight:600; letter-spacing:-0.025em; line-height:1.08;
+  color:var(--text-primary);
+  max-width:19ch;
+}
+.sub {
+  margin-top:24px;
+  font-size:17px; line-height:1.65;
+  color:var(--text-secondary);
+  max-width:46ch;
+}
+.w {
+  display:inline-block; opacity:0; transform:translateY(10px);
+}
+.in .w { animation: rise .38s ease-out forwards; animation-delay:var(--d); }
+@keyframes rise { to { opacity:1; transform:none; } }
+/* Bridge: "Sound familiar?" + real quote, then the single hero CTA */
+.bridge { margin-top:34px; opacity:0; transform:translateY(10px); }
+.in .bridge { animation: rise .38s ease-out forwards; animation-delay:1.5s; }
+.bridge .ask {
+  display:block;
+  font-family:var(--font-sans); font-size:14px;
+  color:var(--text-secondary);
+}
+.bridge .quote {
+  display:block; margin-top:8px;
+  font-family:var(--font-sans); font-size:17px; font-style:italic;
+  line-height:1.55; color:var(--text-primary);
+  max-width:44ch;
+}
+.cta-scroll {
+  margin-top:30px;
+  opacity:0; transform:translateY(10px);
+  background:none; border:none; padding:0;
+  font-family:var(--font-sans); font-size:15px; font-weight:500;
+  color:var(--core); cursor:pointer;
+}
+.in .cta-scroll { animation: rise .38s ease-out forwards; animation-delay:1.75s; }
+.cta-scroll:hover { color:#5FD4AC; }
+
+.price {
+  margin-top:30px;
+  font-family:var(--font-mono); font-size:15px; font-weight:500;
+  color:var(--text-primary);
+}
+.price .per { color:var(--text-secondary); font-weight:400; }
+.signup { margin-top:14px; }
+
+form.cta { display:flex; gap:10px; max-width:440px; }
+input[type=email] {
+  flex:1; min-width:0; height:46px; padding:0 14px;
+  font-family:var(--font-sans); font-size:15px;
+  color:var(--text-primary);
+  background:var(--surface-1);
+  border:1px solid var(--border); border-radius:var(--radius-md);
+  transition: border-color 120ms ease;
+}
+input::placeholder { color:var(--text-secondary); font-family:var(--font-sans); }
+input[type=email]:focus { border-color:#3A3B3C; outline:none; }
+input[type=email]:focus-visible { outline:1px solid var(--core); outline-offset:2px; }
+button.go {
+  height:46px; padding:0 20px;
+  font-family:var(--font-sans); font-size:15px; font-weight:500;
+  color:var(--text-inverted); background:var(--core);
+  border:none; border-radius:var(--radius-md);
+  cursor:pointer; white-space:nowrap;
+  transition: background 120ms ease, transform 120ms ease;
+}
+button.go:hover { background:#5FD4AC; transform:translateY(-1px); }
+.form-done {
+  height:46px; display:flex; align-items:center;
+  font-family:var(--font-sans); font-size:14px; color:var(--core);
+}
+.form-done[hidden] { display:none; }
+
+/* ══ Shared section chrome ═════════════════════════════════════════════ */
+.view-section {
+  position:relative; z-index:2;
+  max-width:1160px;
+  margin:0 auto;
+  padding: 20vh min(6vw,72px) 6vh;
+}
+.kicker {
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:0.04em; color:var(--k);
+}
+.view-section h2 {
+  margin-top:14px;
+  font-size: clamp(30px, 2.6vw + 8px, 46px);
+  font-weight:600; letter-spacing:-0.02em; line-height:1.1;
+  color:var(--text-primary);
+}
+.lead {
+  margin-top:16px;
+  font-size:16px; line-height:1.65;
+  color:var(--text-secondary);
+  max-width:56ch;
+}
+/* scroll reveals */
+.reveal { opacity:0; transform:translateY(26px); transition: opacity .6s ease-out, transform .6s ease-out; transition-delay: calc(var(--i,0)*70ms); }
+.reveal.in { opacity:1; transform:none; }
+
+/* ══ SECTION 2 — pain statement (no headline, no label, no CTA) ═══════ */
+.pain {
+  position:relative; z-index:2;
+  max-width:560px; margin:0 auto;
+  padding:80px 24px;
+}
+.pain p {
+  font-family:var(--font-sans); font-size:18px; font-weight:400;
+  color:var(--text-secondary); line-height:1.65;
+  text-align:center;
+}
+
+/* ══ SECTION 01 — Re-entry: greeting band demo + example prompts ═══════ */
+.greet-card {
+  margin-top:44px;
+  border:1px solid var(--border); border-radius:var(--radius-lg);
+  background:var(--canvas); overflow:hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+.greet-band {
+  display:flex; align-items:center; gap:16px;
+  padding:14px 16px;
+  background:var(--surface-1);
+  border-bottom:1px solid var(--border-subtle);
+}
+.gb-label { font-family:var(--font-sans); font-size:11px; color:var(--text-tertiary); white-space:nowrap; flex-shrink:0; }
+.gb-sentence {
+  flex:1; min-width:0;
+  font-family:var(--font-sans); font-size:15px; color:var(--text-primary);
+  line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.qa-toggle { display:flex; border:1px solid var(--border); border-radius:3px; overflow:hidden; flex-shrink:0; }
+.qa {
+  padding:3px 9px; border:none; cursor:pointer;
+  font-family:var(--font-sans); font-size:12px;
+  background:transparent; color:var(--text-tertiary);
+  transition: all 120ms ease;
+}
+.qa.q.on { background:#2A1D08; color:var(--open); }
+.qa.a.on { background:#0D2B22; color:var(--core); }
+.gb-session { font-family:var(--font-sans); font-size:12px; color:var(--text-tertiary); white-space:nowrap; flex-shrink:0; }
+.greet-foot {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 16px;
+}
+.gb-hint { font-family:var(--font-mono); font-size:10px; color:var(--text-secondary); }
+.gb-hint.ok { color:var(--core); }
+.save-pill {
+  background: rgba(76,201,160,0.08);
+  border:1px solid rgba(76,201,160,0.15);
+  border-top:1px solid rgba(76,201,160,0.25);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5);
+  color:var(--text-primary);
+  font-family:var(--font-sans); font-size:11px; font-weight:500; letter-spacing:0.03em;
+  padding:7px 18px; border-radius:20px; cursor:pointer;
+  transition: background 120ms ease;
+}
+.save-pill:hover { background: rgba(76,201,160,0.14); }
+.scenario {
+  margin-top:16px;
+  font-family:var(--font-sans); font-size:14px; font-style:italic;
+  color:var(--text-secondary); line-height:1.6; max-width:56ch;
+}
+.pills-head {
+  margin-top:40px;
+  font-family:var(--font-sans); font-size:13px; color:var(--text-tertiary);
+}
+.pills { margin-top:14px; display:flex; flex-wrap:wrap; gap:10px; }
+.pill {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 14px;
+  border:1px solid var(--border); border-radius:20px;
+  background:var(--surface-1);
+  font-family:var(--font-sans); font-size:13px; color:var(--text-secondary);
+  transition: border-color 120ms ease, color 120ms ease;
+  cursor:default;
+}
+.pill:hover { border-color:#3A3B3C; color:var(--text-primary); }
+.pill i { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+/* ══ FAQ ═══════════════════════════════════════════════════════════════ */
+.faqs { margin-top:32px; max-width:720px; }
+.faqs details { border-bottom:1px solid var(--border-subtle); }
+.faqs summary {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:18px 0;
+  font-family:var(--font-sans); font-size:15px; font-weight:500;
+  color:var(--text-primary); cursor:pointer; list-style:none;
+}
+.faqs summary::-webkit-details-marker { display:none; }
+.faqs summary .chev {
+  color:var(--text-tertiary); font-size:11px;
+  transition: transform 160ms ease; flex-shrink:0;
+}
+.faqs details[open] summary .chev { transform:rotate(180deg); }
+.faqs details p {
+  padding:0 0 18px;
+  font-family:var(--font-sans); font-size:14px; line-height:1.65;
+  color:var(--text-secondary); max-width:60ch;
+}
+
+/* ══ SECTION 02 — Map view glimpse ═════════════════════════════════════ */
+.tilt { margin-top:44px; perspective:1200px; }
+.map-card {
+  position:relative;
+  border:1px solid var(--border); border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:
+    radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--canvas);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+  transition: transform .25s ease-out;
+  transform-style:preserve-3d;
+  will-change: transform;
+}
+.map-card svg { display:block; width:100%; height:auto; }
+.medge { fill:none; stroke-linecap:round; transition: stroke .18s ease, opacity .3s ease; }
+.mnode { cursor:pointer; }
+.mnode circle.body { transition: stroke .15s ease; }
+.mnode text {
+  font-family:var(--font-sans);
+  pointer-events:none;
+  paint-order:stroke;
+  stroke:rgba(8,9,10,0.78); stroke-width:3px; stroke-linejoin:round;
+}
+.mnode, .medge { transition: opacity .3s ease; }
+svg.hovering .mnode:not(.hot) { opacity:0.14; }
+svg.hovering .medge:not(.hot) { opacity:0.08; }
+.mnode .pop { transform:scale(0); transform-origin:center; transition:transform .5s cubic-bezier(.2,.9,.3,1.2); transition-delay:var(--pd,0s); }
+.map-drawn .mnode .pop { transform:scale(1); }
+@keyframes focus-pulse-svg { 0%,100% { stroke:rgba(232,168,74,0.45); } 50% { stroke:rgba(232,168,74,1); } }
+.focus-ring { animation: focus-pulse-svg 2.2s ease-in-out infinite; }
+.map-note {
+  position:absolute; right:16px; top:12px;
+  font-family:var(--font-mono); font-size:10px; color:var(--text-secondary);
+  background:rgba(8,9,10,0.7); padding:4px 10px; border-radius:3px;
+  border:1px solid var(--border-subtle);
+}
+.map-note.connecting { color:var(--open); border-color:rgba(232,168,74,0.4); }
+@media (max-width: 700px) { .map-note { display:none; } }
+/* Terminal-style activity log — dramatizes shipped mechanics only, and
+   appends real lines when the visitor interacts with the map above */
+.map-log {
+  border-top:1px solid var(--border-subtle);
+  background:rgba(8,9,10,0.82);
+  padding:10px 16px 12px;
+  font-family:var(--font-mono);
+  font-size:10.5px; line-height:1.75;
+  color:var(--text-secondary);
+}
+.map-log .ll { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.map-log .lt { color:var(--text-tertiary); display:inline-block; min-width:100px; }
+.map-log .hl-tension { color:var(--tension); }
+.map-log .hl-open { color:var(--open); }
+.map-log .hl-core { color:var(--core); }
+.map-log .ll.new { animation: logline .35s ease-out; }
+@keyframes logline { from { opacity:0; transform:translateY(4px); } }
+/* Add-a-thought input, overlaid on the map like the app's quick-add */
+.map-add {
+  position:absolute; top:12px; left:16px;
+  display:flex; align-items:center; gap:8px;
+  padding:2px 4px 2px 12px;
+  border:1px dashed rgba(232,168,74,0.35); border-radius:var(--radius-md);
+  background:rgba(8,9,10,0.75);
+}
+.map-add .dot { width:6px; height:6px; border-radius:50%; background:var(--open); flex-shrink:0; }
+.map-add input {
+  width:min(280px, 46vw); height:34px;
+  background:transparent; border:none; outline:none;
+  font-family:var(--font-sans); font-size:13px; color:var(--text-primary);
+}
+.map-add input:focus-visible { outline:none; }
+.map-add .hint { font-family:var(--font-mono); font-size:10px; color:var(--open); padding-right:10px; white-space:nowrap; }
+/* Shift-click connect: source node ring, app-style */
+.mnode.connecting circle.body { stroke:var(--open); stroke-width:2px; }
+
+/* ══ SECTION 4 — closing CTA ═══════════════════════════════════════════════ */
+.closing {
+  position:relative; z-index:2;
+  max-width:720px; margin:0 auto;
+  padding: 22vh min(6vw,72px) 26vh;
+  text-align:center;
+}
+.closing h2 {
+  font-size: clamp(30px, 2.6vw + 8px, 46px);
+  font-weight:600; letter-spacing:-0.02em; color:var(--text-primary);
+}
+.closing .lead { margin-left:auto; margin-right:auto; }
+.closing .aud {
+  font-family:var(--font-sans); font-size:13px;
+  color:var(--text-secondary);
+  margin-bottom:16px;
+}
+.closing form.cta { margin:0 auto; }
+.closing .form-done { justify-content:center; }
+
+/* ══ Responsive ════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .system { width:min(44vw, 84vh, 700px); }
+}
+@media (max-width: 1000px) {
+  .stage { flex-direction:column; justify-content:center; gap:4vh; }
+  .brand { left:50%; transform:translateX(-50%); }
+  .system-wrap { position:static; transform:none; order:-1; }
+  .system { width:min(92vw, 52vh, 540px); }
+  .content { max-width:560px; padding:0 24px; text-align:center; transform:none; }
+  h1 { margin-inline:auto; }
+  .sub { margin-left:auto; margin-right:auto; }
+  form.cta { margin:0 auto; }
+  .form-done { justify-content:center; }
+  .view-section { padding-top:14vh; }
+}
+@media (max-width: 600px) {
+  .tag .txt, .sun-tag .txt { display:none; }
+}
+@media (max-width: 520px) {
+  form.cta { flex-direction:column; }
+  button.go { width:100%; }
+}
+
+/* ══ Reduced motion: settle everything immediately ═════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .scene { height:100vh; }
+  .orbit, .holder, .sun, .scroll-hint i, .focus-ring { animation:none !important; }
+  .sun { border-radius:50%; background:var(--sun); box-shadow:0 0 36px 10px rgba(245,185,68,0.14), 0 0 90px 30px rgba(245,185,68,0.10); }
+  .in .w, .in .bridge, .in .cta-scroll { animation:none; opacity:1; transform:none; }
+  .reveal { transition:none; opacity:1; transform:none; }
+  .mnode .pop { transition:none; transform:scale(1); }
+  .map-log .ll.new { animation:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="brand">
+  <svg class="logo-sun" width="18" height="18" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ts-logo-fill" cx="38%" cy="32%" r="68%">
+        <stop offset="0%" stop-color="#ffe070" />
+        <stop offset="50%" stop-color="#f08818" />
+        <stop offset="100%" stop-color="#7a3a00" />
+      </radialGradient>
+      <radialGradient id="ts-logo-spec" cx="35%" cy="30%" r="42%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0.8)" />
+        <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+      </radialGradient>
+    </defs>
+    <path fill="url(#ts-logo-fill)">
+      <animate attributeName="d" dur="4s" repeatCount="indefinite" calcMode="spline"
+        keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
+        values="M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z;
+                M11,3.5 C15,2 19.5,7 18,12 C16.5,17 13,20 9,18.5 C5,17 2,13 3.5,9 C5,5 7,5 11,3.5 Z;
+                M11,3 C16,3 19.5,7 19,12 C18.5,17 14,20 10,18.5 C6,17 2.5,14 3,9.5 C3.5,5 6,3 11,3 Z;
+                M11,3.5 C15,2.5 19.5,7.5 18.5,12 C17.5,16.5 14,19.5 9.5,18.5 C5,17.5 2.5,13 3,9 C3.5,5 7,5 11,3.5 Z;
+                M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z" />
+    </path>
+    <ellipse cx="8.5" cy="8" rx="3.5" ry="2.2" fill="url(#ts-logo-spec)" />
+  </svg>
+  <span>thread</span>
+</div>
+
+<div class="stars" id="starsA" aria-hidden="true"></div>
+<div class="stars-lg" id="starsB" aria-hidden="true"></div>
+<div id="glow" aria-hidden="true"></div>
+
+<!-- ══ SECTION 1: hero ══ -->
+<section class="scene" id="hero-scene">
+  <div class="stage">
+    <div class="system-wrap" aria-hidden="true">
+      <div class="system" id="system">
+        <div class="ring" style="--r:16.4cqi"></div>
+        <div class="ring" style="--r:24.7cqi"></div>
+        <div class="ring" style="--r:33.5cqi"></div>
+
+        <div class="orbit" style="--r:16.4cqi; --d:-166.7s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">Your strongest claim</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:24.7cqi; --d:-220s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">Evidence that held up</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:33.5cqi; --d:-66.7s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">The framing that clicked</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:20.8cqi; --d:-30s">
+          <div class="holder">
+            <div class="asteroid-glow"><div class="asteroid"></div></div>
+            <div class="tag" style="--c:#E06B5A; --ty:16px">
+              <span class="cat">Tension</span>
+              <span class="txt">Where two ideas disagree</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:42.4cqi; --d:-183.3s">
+          <div class="arm">
+            <div class="comet-tail"></div>
+            <div class="comet-tail thin"></div>
+            <div class="comet-body"></div>
+          </div>
+          <div class="holder">
+            <div class="tag" style="--c:#E8A84A; --ty:16px">
+              <span class="cat">Open thought</span>
+              <span class="txt">Tomorrow's first question</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="sun-anchor"></div>
+        <div class="sun" id="sun"></div>
+        <div class="sun-tag">
+          <span class="cat">Main idea</span>
+          <span class="txt">What everything orbits</span>
+        </div>
+      </div>
+    </div>
+
+    <main class="content" id="hero-content">
+      <h1>
+        <span class="w" style="--d:0s">Pick</span>
+        <span class="w" style="--d:.07s">up</span>
+        <span class="w" style="--d:.14s">exactly</span>
+        <span class="w" style="--d:.21s">where</span>
+        <span class="w" style="--d:.28s">your</span>
+        <span class="w" style="--d:.35s">thinking</span>
+        <span class="w" style="--d:.42s">left</span>
+        <span class="w" style="--d:.49s">off.</span>
+      </h1>
+      <p class="sub">
+        <span class="w" style="--d:.6s">Thread</span>
+        <span class="w" style="--d:.63s">saves</span>
+        <span class="w" style="--d:.66s">the</span>
+        <span class="w" style="--d:.69s">state</span>
+        <span class="w" style="--d:.72s">of</span>
+        <span class="w" style="--d:.75s">your</span>
+        <span class="w" style="--d:.78s">thinking</span>
+        <span class="w" style="--d:.81s">—</span>
+        <span class="w" style="--d:.84s">what's</span>
+        <span class="w" style="--d:.87s">settled,</span>
+        <span class="w" style="--d:.9s">what's</span>
+        <span class="w" style="--d:.93s">in</span>
+        <span class="w" style="--d:.96s">tension,</span>
+        <span class="w" style="--d:.99s">what's</span>
+        <span class="w" style="--d:1.02s">still</span>
+        <span class="w" style="--d:1.05s">open</span>
+        <span class="w" style="--d:1.08s">—</span>
+        <span class="w" style="--d:1.11s">so</span>
+        <span class="w" style="--d:1.14s">your</span>
+        <span class="w" style="--d:1.17s">next</span>
+        <span class="w" style="--d:1.2s">session</span>
+        <span class="w" style="--d:1.23s">starts</span>
+        <span class="w" style="--d:1.26s">mid-thought,</span>
+        <span class="w" style="--d:1.29s">not</span>
+        <span class="w" style="--d:1.32s">from</span>
+        <span class="w" style="--d:1.35s">scratch.</span>
+      </p>
+      <div class="bridge">
+        <span class="ask">Sound familiar?</span>
+        <span class="quote">“I scroll up and down for 3 hours skimming until I notice something to edit.”</span>
+      </div>
+      <button class="cta-scroll" id="cta-see" type="button">See how it works ↓</button>
+    </main>
+
+    <div class="intro-tag" id="intro-tag">Where unfinished thinking lives</div>
+    <div class="scroll-hint" id="scroll-hint"><i></i>Scroll</div>
+  </div>
+</section>
+
+<!-- ══ SECTION 2: pain statement ══ -->
+<section class="pain">
+  <p class="reveal" style="--i:0">Most people who work on long projects don't fail from lack of ideas. They fail because every time they stop, the map disappears. Coming back means reconstructing where you were before you can write a single useful sentence.</p>
+</section>
+
+<!-- ══ SECTION 01: Re-entry ══ -->
+<section class="view-section" id="reentry-sec" style="--k:#4CC9A0">
+  <div class="kicker reveal" style="--i:0">01 — Re-entry</div>
+  <h2 class="reveal" style="--i:1">Come back to a sentence, not a search.</h2>
+  <p class="lead reveal" style="--i:2">When you save your place, Thread turns your open question into the first line of your next session — phrased as a question or a next action, your choice.</p>
+
+  <div class="greet-card reveal" style="--i:3">
+    <div class="greet-band">
+      <span class="gb-label">// where you left off</span>
+      <p class="gb-sentence" id="gb-sentence">Figure out: what does a zero-willpower morning look like</p>
+      <div class="qa-toggle">
+        <button type="button" class="qa q" data-mode="q">Q</button>
+        <button type="button" class="qa a on" data-mode="a">A</button>
+      </div>
+      <span class="gb-session" id="gb-session">Session 4</span>
+    </div>
+    <div class="greet-foot">
+      <span class="gb-hint" id="gb-hint">try the Q / A toggle — same thought, two ways back in</span>
+      <button type="button" class="save-pill" id="save-place">⊙ Save my place</button>
+    </div>
+  </div>
+  <p class="scenario reveal" style="--i:4">Close the tab mid-thought on Tuesday. Friday opens with the sentence that restarts you.</p>
+
+  <div class="pills-head reveal" style="--i:5">The first sentence of your next session:</div>
+  <div class="pills reveal" style="--i:6" aria-hidden="true">
+    <span class="pill"><i style="background:#4CC9A0"></i>Continue developing: environment design beats discipline</span>
+    <span class="pill"><i style="background:#E06B5A"></i>Resolve: novelty still wins sometimes</span>
+    <span class="pill"><i style="background:#E8A84A"></i>Figure out: what a zero-willpower morning looks like</span>
+    <span class="pill"><i style="background:#E8A84A"></i>Decide: does this hold for teams</span>
+    <span class="pill"><i style="background:#4CC9A0"></i>Continue developing: attention is a finite budget</span>
+  </div>
+</section>
+
+<!-- ══ SECTION 02: Map view ══ -->
+<section class="view-section" id="map-sec" style="--k:#E8A84A">
+  <div class="kicker reveal" style="--i:0">02 — Map view</div>
+  <h2 class="reveal" style="--i:1">See how your ideas connect.</h2>
+  <p class="lead reveal" style="--i:2">The same ideas as a living map. Connect related thoughts, see tensions at a glance, and the question you left open stays lit until you answer it.</p>
+
+  <div class="tilt reveal" style="--i:3">
+    <div class="map-card" id="map-card">
+      <svg id="map-svg" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" aria-label="Map view of the example thread">
+        <defs>
+          <!-- context-stroke makes the arrowhead inherit each edge's color, same technique as the app -->
+          <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L6,3 L0,6" fill="none" stroke="context-stroke" stroke-width="1"/>
+          </marker>
+        </defs>
+        <!-- cluster halos -->
+        <path d="M 250 230 L 150 300 L 300 340 Z" fill="rgba(76,201,160,0.04)" stroke="rgba(76,201,160,0.05)" stroke-width="36" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>
+        <path d="M 560 170 L 660 250" fill="none" stroke="rgba(107,154,232,0.05)" stroke-width="36" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>
+        <!-- edges (drawn on scroll) -->
+        <path class="medge" data-e="n1,n2" d="M 250 230 Q 178 246 150 300" stroke="rgba(76,201,160,0.35)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n1,n3" d="M 250 230 Q 291 271 300 340" stroke="rgba(76,201,160,0.35)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n2,n3" d="M 150 300 Q 222 336 300 340" stroke="rgba(76,201,160,0.35)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n4,n5" d="M 560 170 Q 618 195 660 250" stroke="rgba(107,154,232,0.35)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n1,n4" d="M 250 230 Q 405 165 560 170" stroke="rgba(255,255,255,0.16)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n6,n1" d="M 120 140 Q 180 175 250 230" stroke="rgba(224,107,90,0.55)" stroke-width="1" stroke-dasharray="5 4"/>
+        <path class="medge" data-e="n7,n1" d="M 480 380 Q 365 320 250 230" stroke="rgba(255,255,255,0.16)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <path class="medge" data-e="n7,n4" d="M 480 380 Q 525 275 560 170" stroke="rgba(255,255,255,0.16)" stroke-width="1" marker-end="url(#arrowhead)"/>
+        <!-- nodes: sized and colored like the real Map view — small dots, multi-hue
+             cluster palette (not organizer color), directional arrowheads -->
+        <g class="mnode" data-n="n1" transform="translate(250,230)" style="--pd:.05s">
+          <circle r="17" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="9" fill="#4CC9A0" filter="drop-shadow(0 0 6px rgba(76,201,160,0.4))"/>
+            <text x="14" y="0" dominant-baseline="central" font-size="12" font-weight="600" fill="#E8E6DC">Environment design beats discipline</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n2" transform="translate(150,300)" style="--pd:.15s">
+          <circle r="13" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="5.5" fill="#4CC9A0"/>
+            <text x="10" y="0" dominant-baseline="central" font-size="10.5" fill="#9A9893">Friction is a design material</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n3" transform="translate(300,340)" style="--pd:.22s">
+          <circle r="13" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="5.5" fill="#4CC9A0"/>
+            <text x="10" y="0" dominant-baseline="central" font-size="10.5" fill="#9A9893">Defaults do the heavy lifting</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n4" transform="translate(560,170)" style="--pd:.3s">
+          <circle r="15" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="7.5" fill="#6B9AE8" filter="drop-shadow(0 0 6px rgba(107,154,232,0.4))"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11.5" font-weight="600" fill="#E8E6DC">Attention is a finite budget</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n5" transform="translate(660,250)" style="--pd:.38s">
+          <circle r="13" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="5.5" fill="#6B9AE8"/>
+            <text x="10" y="0" dominant-baseline="central" font-size="10.5" fill="#9A9893">Open loops tax the same pool</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n6" transform="translate(120,140)" style="--pd:.46s">
+          <circle r="13" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="5.5" fill="#E06B5A"/>
+            <text x="10" y="0" dominant-baseline="central" font-size="10.5" fill="#9A9893">Novelty still wins sometimes</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n7" transform="translate(480,380)" style="--pd:.54s">
+          <circle r="15" fill="transparent"/>
+          <g class="pop">
+            <circle class="focus-ring" r="11" fill="none" stroke="rgba(232,168,74,0.8)" stroke-width="1.5"/>
+            <circle class="body" r="6.5" fill="#C77DDA" filter="drop-shadow(0 0 8px rgba(199,125,218,0.35))"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11.5" font-weight="600" fill="#E8E6DC">What does a zero-willpower morning look like?</text>
+          </g>
+        </g>
+      </svg>
+      <div class="map-add">
+        <span class="dot"></span>
+        <input id="map-input" type="text" maxlength="60" placeholder="Add an open thought — type and press Enter" aria-label="Add an open thought">
+        <span class="hint">try it ↵</span>
+      </div>
+      <div class="map-note" id="map-note">hover a node · shift-click two nodes to connect them</div>
+      <div class="map-log" id="map-log" aria-live="polite">
+        <div class="ll"><span class="lt">[2m ago]</span> tagged: “Novelty still wins sometimes” <span class="hl-tension">→ tension</span></div>
+        <div class="ll"><span class="lt">[1m ago]</span> connected: “Novelty still wins sometimes” <span class="hl-tension">—challenges→</span> “Environment design beats discipline”</div>
+        <div class="ll"><span class="lt">[just now]</span> session saved · focus: <span class="hl-open">“What does a zero-willpower morning look like?”</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FAQ ══ -->
+<section class="view-section" id="faq-sec" style="--k:#9A9893">
+  <div class="kicker reveal" style="--i:0">FAQ</div>
+  <h2 class="reveal" style="--i:1">Questions, answered.</h2>
+  <div class="faqs reveal" style="--i:2">
+    <details>
+      <summary>What exactly does Thread save?<span class="chev">▾</span></summary>
+      <p>The state of your argument, not just your files: which claims feel settled, which are in tension, what's still open — and the exact question you were holding when you stopped.</p>
+    </details>
+    <details>
+      <summary>How is this different from Notion, Obsidian, or Roam?<span class="chev">▾</span></summary>
+      <p>Those tools keep what you wrote. Thread keeps where you were. Content survives fine in any tool — it's the thread of the argument that disappears between sessions, and that thread is the product.</p>
+    </details>
+    <details>
+      <summary>Is it for writing or for code?<span class="chev">▾</span></summary>
+      <p>Both. Claims, tensions, and open questions describe a design doc or a debugging journal as well as they describe a chapter. If the work spans sessions, it has a thread worth keeping.</p>
+    </details>
+    <details>
+      <summary>Where does my thinking live?<span class="chev">▾</span></summary>
+      <p>In your browser, in the current version — with one-click JSON export and import. Nothing is locked in.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ══ SECTION 4: closing CTA ══ -->
+<section class="closing">
+  <p class="aud reveal" style="--i:0">Built for students, researchers, and anyone doing sustained analytical work — writing or code.</p>
+  <h2 class="reveal" style="--i:1">Pick up exactly where your thinking left off.</h2>
+  <p class="lead reveal" style="--i:2">One place for the thinking between sessions.</p>
+  <div class="price reveal" style="--i:3">$12<span class="per">/month</span></div>
+  <div class="signup reveal" style="--i:4">
+    <form class="cta">
+      <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+      <button class="go" type="submit">Get early access</button>
+    </form>
+    <div class="form-done" hidden>Thanks — you're on the list.</div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var easeInOut = function (t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; };
+  var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };
+
+  var scene = document.getElementById('hero-scene');
+  var sun = document.getElementById('sun');
+  var anchor = document.getElementById('sun-anchor');
+  var system = document.getElementById('system');
+  var heroContent = document.getElementById('hero-content');
+  var introTag = document.getElementById('intro-tag');
+  var hint = document.getElementById('scroll-hint');
+  var progress = document.getElementById('progress');
+  var starsA = document.getElementById('starsA');
+  var starsB = document.getElementById('starsB');
+  var mapCard = document.getElementById('map-card');
+  var mapSvg = document.getElementById('map-svg');
+
+  /* ── Sun travel: measure home position via zero-size anchor ─────────── */
+  var dx = 0, dy = 0, needMeasure = true;
+  function measureSun() {
+    var r = anchor.getBoundingClientRect();
+    dx = innerWidth / 2 - r.left;
+    dy = innerHeight / 2 - r.top;
+    needMeasure = false;
+  }
+
+  /* ── Map edges: measure real path lengths for scroll-drawing ────────── */
+  var edges = Array.prototype.slice.call(mapSvg.querySelectorAll('.medge'));
+  edges.forEach(function (p) {
+    var len = p.getTotalLength();
+    p.dataset.len = len;
+    if (!reduced) {
+      p.style.strokeDasharray = p.getAttribute('stroke-dasharray')
+        ? p.getAttribute('stroke-dasharray') : String(len);
+      p.dataset.dashed = p.getAttribute('stroke-dasharray') === '5 4' ? '1' : '';
+      if (p.dataset.dashed) { p.style.strokeDasharray = ''; p.style.opacity = '0'; }
+      else p.style.strokeDashoffset = String(len);
+    }
+  });
+  var mapDrawn = false;
+
+  /* ── Scroll engine (rAF-throttled, transform/opacity only) ──────────── */
+  var ticking = false;
+  function frame() {
+    ticking = false;
+    var sy = scrollY, vh = innerHeight;
+    if (vh <= 0) return; /* degenerate viewport (hidden webview etc.) */
+
+    progress.style.transform = 'scaleX(' + clamp(sy / (document.documentElement.scrollHeight - vh), 0, 1) + ')';
+    starsA.style.transform = 'translateY(' + (-sy * 0.04) + 'px)';
+    starsB.style.transform = 'translateY(' + (-sy * 0.085) + 'px)';
+
+    if (reduced) return;
+
+    /* hero pin: sun travels home, system and labels fade in, content latches */
+    var total = scene.offsetHeight - vh;
+    var p = clamp(-scene.getBoundingClientRect().top / total, 0, 1);
+    if (needMeasure && p < 0.98) measureSun();
+    var e = easeInOut(clamp(p / 0.55, 0, 1));
+    sun.style.transform = 'translate(-50%,-50%) translate(' + dx * (1 - e) + 'px,' + dy * (1 - e) + 'px) scale(' + (1 + 3.4 * (1 - e)) + ')';
+    system.style.setProperty('--sysop', clamp((p - 0.30) / 0.22, 0, 1).toFixed(3));
+    system.style.setProperty('--labop', clamp((p - 0.48) / 0.18, 0, 1).toFixed(3));
+    introTag.style.opacity = clamp(1 - p / 0.12, 0, 1).toFixed(3);
+    hint.style.opacity = clamp(1 - p / 0.08, 0, 1).toFixed(3);
+    if (p > 0.62) heroContent.classList.add('in');
+
+    /* map edge drawing, scrubbed by viewport position */
+    var mr = mapCard.getBoundingClientRect();
+    var mp = easeOut(clamp((vh - mr.top) / (vh * 0.85), 0, 1));
+    edges.forEach(function (pth) {
+      if (pth.dataset.dashed) pth.style.opacity = String(mp);
+      else pth.style.strokeDashoffset = String(pth.dataset.len * (1 - mp));
+    });
+    if (mp > 0.25 && !mapDrawn) { mapDrawn = true; mapCard.classList.add('map-drawn'); }
+  }
+  /* Direct call with a ~1-frame timestamp throttle: immune to environments
+     that suppress rAF (occluded tabs, aggressive webviews). frame() only
+     writes transforms/opacity, so this stays cheap. */
+  var lastFrame = 0;
+  function onScroll() {
+    var now = Date.now();
+    if (now - lastFrame < 16) {
+      if (!ticking) { ticking = true; setTimeout(function () { ticking = false; frame(); }, 20); }
+      return;
+    }
+    lastFrame = now;
+    frame();
+  }
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', function () { needMeasure = true; onScroll(); }, { passive: true });
+
+  if (reduced) {
+    system.style.setProperty('--sysop', '1');
+    system.style.setProperty('--labop', '1');
+    heroContent.classList.add('in');
+    introTag.style.display = 'none';
+    hint.style.display = 'none';
+    sun.style.transform = 'translate(-50%,-50%)';
+    mapCard.classList.add('map-drawn');
+  }
+  frame();
+  /* fonts/layout settle → remeasure once */
+  addEventListener('load', function () { needMeasure = true; onScroll(); });
+
+  /* ── Section reveals ─────────────────────────────────────────────────── */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  }, { rootMargin: '0px 0px -12% 0px' });
+  document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+
+  /* ── Ambient glow: throttled mousemove, transform only ──────────────── */
+  var glow = document.getElementById('glow'), lastGlow = 0;
+  addEventListener('mousemove', function (ev) {
+    var now = Date.now();
+    if (now - lastGlow < 40) return;
+    lastGlow = now;
+    glow.style.transform = 'translate3d(' + ev.clientX + 'px,' + ev.clientY + 'px,0) translate(-50%,-50%)';
+  }, { passive: true });
+
+  /* ── Map interactivity: hover adjacency + 3D tilt ────────────────────── */
+  var adj = {};
+  function addAdj(a, b) { (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); }
+  edges.forEach(function (p) { var e = p.dataset.e.split(','); addAdj(e[0], e[1]); });
+
+  function wireNode(g) {
+    g.addEventListener('mouseenter', function () {
+      var id = g.dataset.n;
+      mapSvg.classList.add('hovering');
+      mapSvg.querySelectorAll('.mnode').forEach(function (n) {
+        n.classList.toggle('hot', n.dataset.n === id || (adj[id] || []).indexOf(n.dataset.n) !== -1);
+      });
+      mapSvg.querySelectorAll('.medge').forEach(function (p) {
+        var e = p.dataset.e.split(',');
+        p.classList.toggle('hot', e[0] === id || e[1] === id);
+      });
+    });
+    g.addEventListener('mouseleave', function () {
+      mapSvg.classList.remove('hovering');
+      mapSvg.querySelectorAll('.hot').forEach(function (n) { n.classList.remove('hot'); });
+    });
+    /* Shift-click two nodes to connect them — same gesture as the app */
+    g.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var id = g.dataset.n;
+      if (connectingFrom && connectingFrom !== id) {
+        if ((adj[connectingFrom] || []).indexOf(id) === -1) {
+          makeEdge(connectingFrom, id, 'rgba(255,255,255,0.3)');
+          logLine([
+            { t: ' connected: “' + nodeLabel(connectingFrom) + '” ' },
+            { t: '↔', c: 'hl-core' },
+            { t: ' “' + nodeLabel(id) + '”' }
+          ]);
+        }
+        clearConnecting();
+      } else if (connectingFrom === id) {
+        clearConnecting();
+      } else if (ev.shiftKey) {
+        setConnecting(id);
+      }
+    });
+  }
+
+  /* ── Connect machinery: positions, state, edge factory ───────────────── */
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var npos = {};
+  function regPos(g) {
+    var m = /translate\(([\d.]+)\s*,\s*([\d.]+)\)/.exec(g.getAttribute('transform'));
+    if (m) npos[g.dataset.n] = [parseFloat(m[1]), parseFloat(m[2])];
+  }
+  var noteEl = document.getElementById('map-note');
+  var noteDefault = noteEl.textContent;
+  var connectingFrom = null;
+  function setConnecting(id) {
+    connectingFrom = id;
+    mapSvg.querySelector('.mnode[data-n="' + id + '"]').classList.add('connecting');
+    noteEl.textContent = '→ click another node to connect';
+    noteEl.classList.add('connecting');
+  }
+  function clearConnecting() {
+    if (!connectingFrom) return;
+    var g = mapSvg.querySelector('.mnode.connecting');
+    if (g) g.classList.remove('connecting');
+    connectingFrom = null;
+    noteEl.textContent = noteDefault;
+    noteEl.classList.remove('connecting');
+  }
+  mapSvg.addEventListener('click', function (ev) {
+    if (!ev.target.closest('.mnode')) clearConnecting();
+  });
+  function drawEdgeIn(path) {
+    if (reduced) return;
+    var len = path.getTotalLength();
+    path.style.strokeDasharray = String(len);
+    path.style.strokeDashoffset = String(len);
+    setTimeout(function () {
+      path.style.transition = 'stroke-dashoffset .7s ease-out';
+      path.style.strokeDashoffset = '0';
+    }, 30);
+  }
+  /* User-created edges are not registered with the scroll scrub — they are
+     one-shot draws that stay visible once made. Hover picks them up live. */
+  function makeEdge(a, b, stroke) {
+    var pa = npos[a], pb = npos[b];
+    if (!pa || !pb) return;
+    var ex = pb[0] - pa[0], ey = pb[1] - pa[1];
+    var dist = Math.sqrt(ex * ex + ey * ey) || 1;
+    var cx = (pa[0] + pb[0]) / 2 - ey / dist * dist * 0.18;
+    var cy = (pa[1] + pb[1]) / 2 + ex / dist * dist * 0.18;
+    var path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('class', 'medge');
+    path.setAttribute('data-e', a + ',' + b);
+    path.setAttribute('d', 'M ' + pa[0] + ' ' + pa[1] + ' Q ' + cx + ' ' + cy + ' ' + pb[0] + ' ' + pb[1]);
+    path.setAttribute('stroke', stroke);
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('marker-end', 'url(#arrowhead)');
+    mapSvg.insertBefore(path, mapSvg.querySelector('.mnode'));
+    addAdj(a, b);
+    drawEdgeIn(path);
+  }
+  mapSvg.querySelectorAll('.mnode').forEach(function (g) { regPos(g); wireNode(g); });
+
+  /* ── Activity log: appends real lines when the visitor interacts ─────── */
+  var logEl = document.getElementById('map-log');
+  function nodeLabel(id) {
+    var t = mapSvg.querySelector('.mnode[data-n="' + id + '"] text');
+    return t ? t.textContent : id;
+  }
+  function logLine(parts) {
+    logEl.querySelectorAll('.lt').forEach(function (t) {
+      if (t.textContent === '[just now]') t.textContent = '[moments ago]';
+    });
+    var row = document.createElement('div');
+    row.className = 'll new';
+    var stamp = document.createElement('span');
+    stamp.className = 'lt';
+    stamp.textContent = '[just now]';
+    row.appendChild(stamp);
+    parts.forEach(function (p) {
+      var s = document.createElement('span');
+      if (p.c) s.className = p.c;
+      s.textContent = p.t;
+      row.appendChild(s);
+    });
+    logEl.appendChild(row);
+    while (logEl.children.length > 4) logEl.removeChild(logEl.firstChild);
+  }
+
+  /* ── Add an open thought: typed text becomes a node wired to focus ───── */
+  var mapInput = document.getElementById('map-input');
+  var slots = [[580, 448], [380, 458], [620, 310]];
+  var addedCount = 0;
+  mapInput.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return;
+    var text = mapInput.value.trim();
+    if (!text) return;
+    ev.preventDefault();
+    if (addedCount >= slots.length) return;
+    var pos = slots[addedCount];
+    var id = 'a' + addedCount;
+    var g = document.createElementNS(SVGNS, 'g');
+    g.setAttribute('class', 'mnode');
+    g.setAttribute('data-n', id);
+    g.setAttribute('transform', 'translate(' + pos[0] + ',' + pos[1] + ')');
+    var hit = document.createElementNS(SVGNS, 'circle');
+    hit.setAttribute('r', '13'); hit.setAttribute('fill', 'transparent');
+    var popg = document.createElementNS(SVGNS, 'g');
+    popg.setAttribute('class', 'pop');
+    var c = document.createElementNS(SVGNS, 'circle');
+    /* Gray: a fresh idea starts unclustered, like the real app, until it's
+       linked into a community — the amber ring stays reserved for focus. */
+    c.setAttribute('class', 'body'); c.setAttribute('r', '5.5'); c.setAttribute('fill', '#5C5B58');
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', '10'); t.setAttribute('y', '0');
+    t.setAttribute('dominant-baseline', 'central'); t.setAttribute('font-size', '10.5');
+    t.setAttribute('fill', '#9A9893');
+    t.textContent = text.length > 26 ? text.slice(0, 25).trimEnd() + '…' : text;
+    popg.appendChild(c); popg.appendChild(t);
+    g.appendChild(hit); g.appendChild(popg);
+    mapSvg.appendChild(g);
+    npos[id] = pos;
+    wireNode(g);
+    makeEdge('n7', id, 'rgba(255,255,255,0.3)');
+    if (!reduced) {
+      popg.style.transition = 'transform .5s cubic-bezier(.2,.9,.3,1.2) .3s';
+      popg.style.transformOrigin = 'center';
+      popg.style.transform = 'scale(0)';
+      setTimeout(function () { popg.style.transform = 'scale(1)'; }, 30);
+    }
+    logLine([
+      { t: ' added: “' + (text.length > 32 ? text.slice(0, 31).trimEnd() + '…' : text) + '” ' },
+      { t: '→ open thought', c: 'hl-open' },
+      { t: ' · linked to focus' }
+    ]);
+    addedCount++;
+    if (addedCount === slots.length) {
+      mapInput.placeholder = 'That’s the idea — the real thing holds as many as you need';
+    }
+    mapInput.value = '';
+  });
+
+  if (matchMedia('(hover:hover) and (pointer:fine)').matches && !reduced) {
+    var lastTilt = 0;
+    mapCard.addEventListener('mousemove', function (ev) {
+      var now = Date.now();
+      if (now - lastTilt < 40) return;
+      lastTilt = now;
+      var r = mapCard.getBoundingClientRect();
+      var rx = ((ev.clientY - r.top) / r.height - 0.5) * -4;
+      var ry = ((ev.clientX - r.left) / r.width - 0.5) * 5;
+      mapCard.style.transform = 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+    });
+    mapCard.addEventListener('mouseleave', function () { mapCard.style.transform = ''; });
+  }
+
+  /* ── Hero CTA: scroll to the first demo ──────────────────────────────── */
+  document.getElementById('cta-see').addEventListener('click', function () {
+    document.getElementById('reentry-sec').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+  });
+
+  /* ── Re-entry demo: Q/A toggle + save-my-place, per the app's mechanics ─ */
+  var gbSentence = document.getElementById('gb-sentence');
+  var GB_FORMS = {
+    q: 'What does a zero-willpower morning look like?',
+    a: 'Figure out: what does a zero-willpower morning look like'
+  };
+  document.querySelectorAll('.qa').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.qa').forEach(function (b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      gbSentence.textContent = GB_FORMS[btn.dataset.mode];
+    });
+  });
+  var gbSession = document.getElementById('gb-session');
+  var gbHint = document.getElementById('gb-hint');
+  var gbHintDefault = gbHint.textContent;
+  var sessionN = 4;
+  var hintTimer = null;
+  document.getElementById('save-place').addEventListener('click', function () {
+    sessionN++;
+    gbSession.textContent = 'Session ' + sessionN;
+    gbHint.textContent = 'saved — this exact band opens session ' + sessionN;
+    gbHint.classList.add('ok');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () {
+      gbHint.textContent = gbHintDefault;
+      gbHint.classList.remove('ok');
+    }, 2800);
+  });
+
+  /* ── Email capture (front-end only in this standalone build) ─────────── */
+  document.querySelectorAll('form.cta').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      f.hidden = true;
+      f.parentElement.querySelector('.form-done').hidden = false;
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
