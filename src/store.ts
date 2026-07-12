@@ -349,6 +349,8 @@ function extractProject(s: Store): ThreadProject {
   }
 }
 
+console.log("STORE FILE LOADED")
+
 useStore.subscribe((s) => {
   console.log("SUBSCRIBE FIRED", s.nodes.length)
 
