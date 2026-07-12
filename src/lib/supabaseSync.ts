@@ -13,7 +13,11 @@ export async function saveProject(project: any) {
     })
 
   if (projectError) {
-    console.error('Project save failed:', projectError)
+    console.error(projectError)
+console.log(projectError.message)
+console.log(projectError.details)
+console.log(projectError.hint)
+console.log(projectError.code)
     return
   }
 
