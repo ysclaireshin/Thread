@@ -1,0 +1,347 @@
+{
+  "run_date": "2026-07-13T06:04:45.873Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "prompt_version": "structured-output-v1 — JSON schema + ID validation",
+  "total_api_calls": 11,
+  "json_parse_failures": 0,
+  "recall": [
+    {
+      "pair_id": "R1",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"r1-tension\",\n    \"target_id\": \"r1-core\",\n    \"rationale\": \"challenges faster connection claim\"\n  }\n]}",
+      "seeded_ids": [
+        "r1-core",
+        "r1-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r1-tension",
+          "target_id": "r1-core",
+          "rationale": "challenges faster connection claim"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r1-tension",
+          "target_id": "r1-core",
+          "rationale": "challenges faster connection claim"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "r1-tension",
+      "target_id_returned": "r1-core",
+      "rationale_returned": "challenges faster connection claim",
+      "rationale_word_count": 4,
+      "note": "tension↔core: the tension undermines the core speed claim (reflexive accepts sacrifice judgment)."
+    },
+    {
+      "pair_id": "R2",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"r2-open\",\n    \"target_id\": \"r2-core\",\n    \"rationale\": \"Resolves question\"\n  }\n]}",
+      "seeded_ids": [
+        "r2-open",
+        "r2-core"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r2-open",
+          "target_id": "r2-core",
+          "rationale": "Resolves question"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r2-open",
+          "target_id": "r2-core",
+          "rationale": "Resolves question"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "r2-open",
+      "target_id_returned": "r2-core",
+      "rationale_returned": "Resolves question",
+      "rationale_word_count": 2,
+      "note": "open↔core: the core idea directly answers the open question about distinguishing edges."
+    },
+    {
+      "pair_id": "R3",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"r3-tension-a\",\n    \"target_id\": \"r3-tension-b\",\n    \"rationale\": \"Hides sessions Deep Scan needs\"\n  }\n]}",
+      "seeded_ids": [
+        "r3-tension-a",
+        "r3-tension-b"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r3-tension-a",
+          "target_id": "r3-tension-b",
+          "rationale": "Hides sessions Deep Scan needs"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r3-tension-a",
+          "target_id": "r3-tension-b",
+          "rationale": "Hides sessions Deep Scan needs"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "r3-tension-a",
+      "target_id_returned": "r3-tension-b",
+      "rationale_returned": "Hides sessions Deep Scan needs",
+      "rationale_word_count": 5,
+      "note": "tension↔tension: both stem from the same root — the default scan scope is deliberately narrow."
+    },
+    {
+      "pair_id": "R4",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"r4-tension\",\n      \"target_id\": \"r4-open\",\n      \"rationale\": \"Tension illustrates open thought\"\n    }\n]}",
+      "seeded_ids": [
+        "r4-open",
+        "r4-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r4-tension",
+          "target_id": "r4-open",
+          "rationale": "Tension illustrates open thought"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r4-tension",
+          "target_id": "r4-open",
+          "rationale": "Tension illustrates open thought"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "r4-tension",
+      "target_id_returned": "r4-open",
+      "rationale_returned": "Tension illustrates open thought",
+      "rationale_word_count": 4,
+      "note": "open↔tension: the open definitional question must be resolved before the fluent-but-wrong tension can be addressed."
+    },
+    {
+      "pair_id": "R5",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"r5-tension\",\n      \"target_id\": \"r5-core\",\n      \"rationale\": \"challenges the core claim\"\n    }\n]}",
+      "seeded_ids": [
+        "r5-core",
+        "r5-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r5-tension",
+          "target_id": "r5-core",
+          "rationale": "challenges the core claim"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r5-tension",
+          "target_id": "r5-core",
+          "rationale": "challenges the core claim"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "r5-tension",
+      "target_id_returned": "r5-core",
+      "rationale_returned": "challenges the core claim",
+      "rationale_word_count": 4,
+      "note": "tension↔core: the tension complicates the core claim — the same filter that blocks false positives also blocks some real links."
+    }
+  ],
+  "precision": [
+    {
+      "pair_id": "P1",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"p1-tension\",\n    \"target_id\": \"p1-core\",\n    \"rationale\": \"challenges incremental numbering\"\n  }\n]}",
+      "seeded_ids": [
+        "p1-core",
+        "p1-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "p1-tension",
+          "target_id": "p1-core",
+          "rationale": "challenges incremental numbering"
+        }
+      ],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "p1-tension",
+          "target_id": "p1-core",
+          "rationale": "challenges incremental numbering"
+        }
+      ],
+      "validation_caught_it": "na",
+      "connection_suggested": true,
+      "source_id_returned": "p1-tension",
+      "target_id_returned": "p1-core",
+      "rationale_returned": "challenges incremental numbering",
+      "rationale_word_count": 3,
+      "note": "shared word \"session\" in two different senses (data session_id vs human work-session duration); no structural link."
+    },
+    {
+      "pair_id": "P2",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p2-open",
+        "p2-core"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "validation_caught_it": "na",
+      "connection_suggested": false,
+      "source_id_returned": null,
+      "target_id_returned": null,
+      "rationale_returned": null,
+      "rationale_word_count": 0,
+      "note": "shared topic \"color\" but the open question (tension accent hue) and core (dark background) do not speak to each other."
+    },
+    {
+      "pair_id": "P3",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p3-tension-a",
+        "p3-tension-b"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "validation_caught_it": "na",
+      "connection_suggested": false,
+      "source_id_returned": null,
+      "target_id_returned": null,
+      "rationale_returned": null,
+      "rationale_word_count": 0,
+      "note": "both are user-facing frictions (\"the user…\") but structurally independent — no shared root cause."
+    },
+    {
+      "pair_id": "P4",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p4-open",
+        "p4-tension"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "validation_caught_it": "na",
+      "connection_suggested": false,
+      "source_id_returned": null,
+      "target_id_returned": null,
+      "rationale_returned": null,
+      "rationale_word_count": 0,
+      "note": "homonym trap: \"edge\" as graph-edge vs \"edge case\" in the parser. Pure word overlap."
+    },
+    {
+      "pair_id": "P5",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p5-core",
+        "p5-open"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "validation_caught_it": "na",
+      "connection_suggested": false,
+      "source_id_returned": null,
+      "target_id_returned": null,
+      "rationale_returned": null,
+      "rationale_word_count": 0,
+      "note": "both mention \"AI\" but Probe behavior and rate-limit reset timing have no structural relationship."
+    }
+  ],
+  "h2": {
+    "pair_id": "H2",
+    "expectation": "connection",
+    "http_ok": true,
+    "json_parse_ok": true,
+    "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"trace-real-b-002\",\n    \"target_id\": \"trace-real-a-001\",\n    \"rationale\": \"Challenges completeness\"\n  }\n]}",
+    "seeded_ids": [
+      "trace-real-a-001",
+      "trace-real-b-002"
+    ],
+    "raw_connections": [
+      {
+        "source_id": "trace-real-b-002",
+        "target_id": "trace-real-a-001",
+        "rationale": "Challenges completeness"
+      }
+    ],
+    "hallucinated_ids": [],
+    "hallucinated_id_in_response": false,
+    "validated_connections": [
+      {
+        "source_id": "trace-real-b-002",
+        "target_id": "trace-real-a-001",
+        "rationale": "Challenges completeness"
+      }
+    ],
+    "validation_caught_it": "na",
+    "connection_suggested": true,
+    "source_id_returned": "trace-real-b-002",
+    "target_id_returned": "trace-real-a-001",
+    "rationale_returned": "Challenges completeness",
+    "rationale_word_count": 2,
+    "note": "confusion bait: injection cites a similar-sounding node under a fake id; validation must drop it if returned.",
+    "model_returned_fake_id": false,
+    "fake_id_value": null,
+    "validation_dropped_it": false,
+    "result": "CLEAN"
+  },
+  "h1": {
+    "fabricated_id_injected": "FABRICATED-NODE-ID-XYZ",
+    "validation_dropped_it": true,
+    "result": "PASS"
+  }
+}

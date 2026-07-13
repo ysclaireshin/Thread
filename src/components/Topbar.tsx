@@ -442,6 +442,7 @@ export function Topbar({ onAddNode, reentryLoading = false }: Props) {
   const {
     nodes, edges, focusMode, setFocusMode, viewMode, setViewMode,
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
+    flowActive, flowIndicatorVisible,
   } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -498,6 +499,23 @@ export function Topbar({ onAddNode, reentryLoading = false }: Props) {
         <span style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)' }}>·</span>
 
         <ProjectSwitcher />
+
+        {/* Flow status indicator — confirms Flow activated on this load, then
+            fades. Not a button; purely a signal that the tool did something. */}
+        {flowActive && (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '10px',
+            color: 'var(--open)',
+            opacity: flowIndicatorVisible ? 0.6 : 0,
+            transition: 'opacity 2s ease-out',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            flexShrink: 0,
+          }}>
+            ▶ Flow
+          </span>
+        )}
 
         <div style={{ flex: 1 }} />
 

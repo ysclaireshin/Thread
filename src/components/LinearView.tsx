@@ -1,11 +1,23 @@
 import { useRef, useState, useEffect } from 'react'
-import { Link2 } from 'lucide-react'
+import { Link2, Crosshair } from 'lucide-react'
 import { InView } from './core/in-view'
 import { useStore } from '../store'
 import { ORGANIZER_META, type TextAnchor, type ThreadNode } from '../types'
 import { AddNodeModal } from './AddNodeModal'
 import { SidePanel } from './SidePanel'
 import { SavePlaceModal } from './SavePlaceModal'
+import { ReentryCard } from './ReentryCard'
+import { ProbeCard, type ProbeStatus } from './ProbeCard'
+import { runProbe } from '../lib/probe'
+import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
+
+// A selection is Probe-eligible only when it is a meaningful run: at least 20
+// characters (ignores accidental single-word grabs) AND contains at least one
+// sentence-ending mark (spans at least one complete sentence).
+function isProbeEligible(text: string): boolean {
+  const t = text.trim()
+  return t.length >= 20 && /[.!?]/.test(t)
+}
 
 // ─── Staleness ────────────────────────────────────────────────────────────────
 
@@ -82,11 +94,12 @@ interface EditorProps {
   onChange: (v: string) => void
   onSelectionCreate: (start: number, end: number, text: string, x: number, y: number) => void
   onAnchorClick: (nodeId: string) => void
+  onCaret: (caret: number) => void
   activeNodeId: string | null
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
-function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClick, activeNodeId, textareaRef }: EditorProps) {
+function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClick, onCaret, activeNodeId, textareaRef }: EditorProps) {
   const mirrorRef = useRef<HTMLDivElement>(null)
   const { textAnchors, nodes } = useStore()
 
@@ -158,10 +171,11 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => { onChange(e.target.value); onCaret(e.target.selectionStart) }}
         onMouseUp={handleMouseUp}
         onClick={handleClick}
         onScroll={syncScroll}
+        onSelect={e => onCaret((e.target as HTMLTextAreaElement).selectionStart)}
         spellCheck={false}
         placeholder="Write here. Select any span of text to tag it as a node →"
         style={{
@@ -186,7 +200,12 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
 
 // ─── Floating selection toolbar ───────────────────────────────────────────────
 
-function SelectionToolbar({ x, y, onCreateNode }: { x: number; y: number; onCreateNode: () => void }) {
+// Probe is offered here as a second option only when the selection is a
+// meaningful run — at least 20 chars AND spanning at least one complete
+// sentence. Below that threshold the Probe button is absent from the DOM.
+function SelectionToolbar({ x, y, onCreateNode, showProbe, onProbe }: {
+  x: number; y: number; onCreateNode: () => void; showProbe: boolean; onProbe: () => void
+}) {
   return (
     <div style={{
       position: 'fixed', zIndex: 50,
@@ -210,6 +229,25 @@ function SelectionToolbar({ x, y, onCreateNode }: { x: number; y: number; onCrea
         <Link2 size={10} />
         Tag as node
       </button>
+      {showProbe && (
+        <>
+          <span style={{ width: '1px', alignSelf: 'stretch', background: 'var(--border)' }} />
+          <button
+            onMouseDown={e => { e.preventDefault(); onProbe() }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
+              padding: 'var(--sp-1) var(--sp-3)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--text-11)',
+              color: 'var(--tension)',
+              background: 'none', border: 'none', cursor: 'pointer',
+            }}
+          >
+            <Crosshair size={10} />
+            Probe
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -402,8 +440,17 @@ interface NodeRowProps {
   parentLabel?: string
 }
 
+// Ambient re-entry glow — a background-color warmth (distinct from the
+// opacity-with-age effect), radiating from the row's left edge in the node's
+// organizer color at 8% opacity.
+const FLOW_GLOW_GRADIENT: Record<ThreadNode['organizer'], string> = {
+  core_idea: 'radial-gradient(ellipse at left, rgba(76, 201, 160, 0.08) 0%, transparent 70%)',
+  point_of_tension: 'radial-gradient(ellipse at left, rgba(224, 107, 90, 0.08) 0%, transparent 70%)',
+  open_thought: 'radial-gradient(ellipse at left, rgba(232, 168, 74, 0.08) 0%, transparent 70%)',
+}
+
 function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: NodeRowProps) {
-  const { nodes, setSelected } = useStore()
+  const { nodes, setSelected, flowGlowIds, flowGlowVisible } = useStore()
   const node = nodes.find(n => n.id === id)
   if (!node) return null
 
@@ -413,6 +460,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
   const stale = isStale(node.last_reinforced_at)
   const isTension = node.organizer === 'point_of_tension'
   const confidence = node.confidence ?? 2
+  const isGlow = flowGlowIds.includes(id)
   const rowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -444,6 +492,17 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
         onMouseEnter={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
         onMouseLeave={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
       >
+        {/* Flow re-entry glow — one-time fade (not a keyframe loop). Sits under
+            the content; background goes transparent after the 8s window. */}
+        {isGlow && (
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+            borderRadius: 'inherit',
+            background: flowGlowVisible ? FLOW_GLOW_GRADIENT[node.organizer] : 'transparent',
+            transition: 'background 2s ease-out',
+          }} />
+        )}
+
         {/* 2px left accent bar */}
         <div style={{
           position: 'absolute', left: 0, top: 0, bottom: 0,
@@ -575,6 +634,9 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas)' }}>
 
+      {/* Flow re-entry card — above the node list and the session divider */}
+      <ReentryCard />
+
       {/* Always-visible current session anchor */}
       <CurrentSessionMarker />
 
@@ -704,8 +766,31 @@ interface AddNodePrefill {
   anchorEnd: number
 }
 
+// ─── Cursor <-> (line, offset) conversion ─────────────────────────────────────
+
+function caretToLineOffset(text: string, caret: number): { line: number; offset: number } {
+  const clamped = Math.max(0, Math.min(caret, text.length))
+  const before = text.slice(0, clamped)
+  const nl = before.lastIndexOf('\n')
+  const line = (before.match(/\n/g)?.length) ?? 0
+  const offset = clamped - (nl + 1)
+  return { line, offset }
+}
+
+function lineOffsetToCaret(text: string, line: number, offset: number): number {
+  const lines = text.split('\n')
+  const targetLine = Math.max(0, Math.min(line, lines.length - 1))
+  let caret = 0
+  for (let i = 0; i < targetLine; i++) caret += lines[i].length + 1
+  caret += Math.max(0, Math.min(offset, lines[targetLine].length))
+  return Math.min(caret, text.length)
+}
+
+// Approx line height: font-size 14px × line-height 1.65 (see EditorWithHighlights).
+const EDITOR_LINE_HEIGHT = 14 * 1.65
+
 export function LinearView() {
-  const { draftText, setDraftText, addTextAnchor, textAnchors, nodes } = useStore()
+  const { draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId } = useStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveButtonRef = useRef<HTMLDivElement>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
@@ -715,7 +800,106 @@ export function LinearView() {
   const [addPrefill, setAddPrefill] = useState<AddNodePrefill | null>(null)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
 
+  // ─── Probe (text-selection trigger) ───────────────────────────────────────
+  // One question, scoped to exactly the selected run. The floating card is not
+  // a modal — no backdrop — so the user can keep writing while it sits there.
+  const [probe, setProbe] = useState<{
+    x: number; y: number
+    start: number; end: number; text: string
+    status: ProbeStatus; question: string; errorMsg: string | null
+  } | null>(null)
+
+  async function startProbe(sel: { start: number; end: number; text: string }, at: { x: number; y: number }) {
+    setToolbar(null)
+    // Shared daily AI cap — surface the plain message inline in the result
+    // card and make no API call once the cap is hit.
+    if (!tryConsumeAiCall()) {
+      setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
+      return
+    }
+    setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'loading', question: '', errorMsg: null })
+    try {
+      const question = await runProbe({ context: 'linear_editor_selection', selectedText: sel.text })
+      setProbe(p => (p ? { ...p, status: 'done', question } : p))
+    } catch {
+      setProbe(p => (p ? { ...p, status: 'error', errorMsg: "Couldn't reach the model. Try again." } : p))
+    }
+  }
+
+  function handleSpawnFromProbe() {
+    if (!probe) return
+    const id = `probe-${Date.now()}`
+    // Node created from a Probe: the question is the label; provenance is
+    // ai_proposed_confirmed (AI-authored, user-confirmed by this click) — NOT
+    // 'human'. session_id + createdWithFocus are auto-stamped by store.addNode.
+    addNode({
+      id,
+      label: probe.question,
+      description: '',
+      organizer: 'point_of_tension',
+      centrality: 0.5,
+      parent_id: null,
+      current_focus: false,
+      last_reinforced_at: new Date().toISOString(),
+      provenance: 'ai_proposed_confirmed',
+      confidence: 2,
+    })
+    // Visual tether: reuse the exact TextAnchor pattern manually tagged spans
+    // use — the mirror div underlines the span in the node's (coral) color.
+    addTextAnchor({
+      id: `ta-${Date.now()}`,
+      node_id: id,
+      start: probe.start,
+      end: probe.end,
+      text: probe.text,
+    })
+    setProbe(null)
+  }
+
+  // Cmd+Shift+A — fires Probe while the text-selection surface is active (a
+  // valid, Probe-eligible selection with its pill showing). No-op otherwise.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        if (selection && toolbar && isProbeEligible(selection.text)) {
+          e.preventDefault()
+          startProbe(selection, toolbar)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, toolbar])
+
   function handleSaveMyPlace() { setSaveModalOpen(true) }
+
+  // ─── Flow: restore cursor on project load ─────────────────────────────────
+  // After the editor mounts, drop the caret on the last-edited line (centered,
+  // focused) so the user can type immediately with no click. Runs once per
+  // project load — keyed on projectId, reads persisted state at fire time.
+  useEffect(() => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const raf = requestAnimationFrame(() => {
+      const { draftText: text, lastCursorLine, lastCursorOffset } = useStore.getState()
+      let caret: number
+      if (lastCursorLine == null || lastCursorOffset == null) {
+        // First session / no saved cursor: end of the draft, not (0,0).
+        caret = text.length
+      } else {
+        caret = lineOffsetToCaret(text, lastCursorLine, lastCursorOffset)
+      }
+      ta.focus()
+      ta.setSelectionRange(caret, caret)
+      // Center the caret line vertically in the viewport.
+      const line = caretToLineOffset(text, caret).line
+      const target = line * EDITOR_LINE_HEIGHT - ta.clientHeight / 2
+      ta.scrollTop = Math.max(0, target)
+    })
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
 
   useEffect(() => {
     if (!saveButtonRef.current) return
@@ -842,6 +1026,7 @@ export function LinearView() {
           onChange={setDraftText}
           onSelectionCreate={handleSelectionCreate}
           onAnchorClick={id => setHighlightedNodeId(id)}
+          onCaret={caret => { const { line, offset } = caretToLineOffset(draftText, caret); setCursorPos(line, offset) }}
           activeNodeId={highlightedNodeId}
           textareaRef={textareaRef}
         />
@@ -860,7 +1045,18 @@ export function LinearView() {
       <div style={{ display: 'flex', flexDirection: 'column', width: '45%', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Outline</span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>{nodes.filter(n => !n.resolved && !n.superseded_by).length} nodes</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+            {/* Passive, display-only count of unresolved tensions — never gates anything. */}
+            {(() => {
+              const openTensions = nodes.filter(n => n.organizer === 'point_of_tension' && !n.resolved && !n.superseded_by).length
+              return (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-10)', color: openTensions > 0 ? 'var(--tension)' : 'var(--text-disabled)' }}>
+                  Tensions · {openTensions} open
+                </span>
+              )
+            })()}
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>{nodes.filter(n => !n.resolved && !n.superseded_by).length} nodes</span>
+          </span>
         </div>
         <OutlinePanel highlightedNodeId={highlightedNodeId} onHighlight={setHighlightedNodeId} />
       </div>
@@ -868,9 +1064,33 @@ export function LinearView() {
       {/* Floating selection toolbar */}
       {toolbar && (
         <>
-          <SelectionToolbar x={toolbar.x} y={toolbar.y} onCreateNode={handleCreateNodeFromSelection} />
+          <SelectionToolbar
+            x={toolbar.x} y={toolbar.y}
+            onCreateNode={handleCreateNodeFromSelection}
+            showProbe={!!selection && isProbeEligible(selection.text)}
+            onProbe={() => { if (selection && toolbar) startProbe(selection, toolbar) }}
+          />
           <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setToolbar(null); setSelection(null) }} />
         </>
+      )}
+
+      {/* Probe result — floating inline card beneath the selection. Not a modal:
+          no backdrop, does not block writing. */}
+      {probe && (
+        <div style={{
+          position: 'fixed', zIndex: 60,
+          left: Math.max(8, Math.min(probe.x - 40, window.innerWidth - 340)),
+          top: probe.y + 8,
+          width: '320px',
+        }}>
+          <ProbeCard
+            status={probe.status}
+            question={probe.question}
+            errorMsg={probe.errorMsg}
+            onSpawn={handleSpawnFromProbe}
+            onDismiss={() => setProbe(null)}
+          />
+        </div>
       )}
 
       {addModalOpen && (

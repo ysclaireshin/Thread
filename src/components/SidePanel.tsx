@@ -1,7 +1,10 @@
-import { useState } from 'react'
-import { X, Target, CheckCircle, ShieldCheck, Link2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Target, CheckCircle, ShieldCheck, Link2, Crosshair } from 'lucide-react'
 import { useStore } from '../store'
 import { ORGANIZER_META, type ThreadNode } from '../types'
+import { ProbeCard, type ProbeStatus } from './ProbeCard'
+import { runProbe } from '../lib/probe'
+import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 interface SidePanelProps {
   showConnect?: boolean
@@ -11,10 +14,79 @@ interface SidePanelProps {
 }
 
 export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }: SidePanelProps) {
-  const { selectedId, nodes, edges, setSelected, updateNode, setFocus } = useStore()
+  const { selectedId, nodes, edges, setSelected, updateNode, setFocus, addNode } = useStore()
   const [notesDraft, setNotesDraft] = useState<string | null>(null)
   const [connectOpen, setConnectOpen] = useState(false)
   const [connectSearch, setConnectSearch] = useState('')
+
+  // ─── Probe (node-selection trigger) ───────────────────────────────────────
+  const [probe, setProbe] = useState<{ status: ProbeStatus; question: string; errorMsg: string | null } | null>(null)
+  // Reset the Probe surface whenever the selected node changes.
+  useEffect(() => { setProbe(null) }, [selectedId])
+
+  async function startNodeProbe() {
+    const target = useStore.getState().nodes.find(n => n.id === useStore.getState().selectedId)
+    if (!target) return
+    if (probe?.status === 'loading') return
+    // Shared daily AI cap — surface the plain message inline, no API call.
+    if (!tryConsumeAiCall()) {
+      setProbe({ status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
+      return
+    }
+    setProbe({ status: 'loading', question: '', errorMsg: null })
+    try {
+      const question = await runProbe({
+        context: 'map_node_selection',
+        nodeLabel: target.label,
+        nodeDescription: target.description,
+        nodeOrganizer: target.organizer,
+      })
+      // Guard against a selection change during the request.
+      if (useStore.getState().selectedId !== target.id) return
+      setProbe({ status: 'done', question, errorMsg: null })
+    } catch {
+      if (useStore.getState().selectedId !== target.id) return
+      setProbe({ status: 'error', question: '', errorMsg: "Couldn't reach the model. Try again." })
+    }
+  }
+
+  function handleSpawnFromProbe() {
+    if (!probe || probe.status !== 'done') return
+    const id = `probe-${Date.now()}`
+    // Node context: no tether, no automatic edge (Probe Part 4 — in Map view the
+    // spawned node enters the simulation and the user decides what to connect it
+    // to). provenance is ai_proposed_confirmed, NOT 'human'.
+    addNode({
+      id,
+      label: probe.question,
+      description: '',
+      organizer: 'point_of_tension',
+      centrality: 0.5,
+      parent_id: null,
+      current_focus: false,
+      last_reinforced_at: new Date().toISOString(),
+      provenance: 'ai_proposed_confirmed',
+      confidence: 2,
+    })
+    setProbe(null)
+  }
+
+  // Cmd+Shift+A fires the node Probe while a node is selected — but yields to an
+  // active text selection (the LinearView text surface owns that case).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        if (!useStore.getState().selectedId) return
+        const activeText = window.getSelection()?.toString().trim() ?? ''
+        if (activeText.length >= 20) return
+        e.preventDefault()
+        startNodeProbe()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (!selectedId) return null
   const node = nodes.find(n => n.id === selectedId)
@@ -64,7 +136,8 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
   }
 
   function handleConnect(targetId: string) {
-    onCreateEdge?.(selectedId, targetId)
+    // node is guaranteed non-null past the guard above (node.id === selectedId).
+    onCreateEdge?.(node!.id, targetId)
     setConnectSearch('')
     setConnectOpen(false)
   }
@@ -220,6 +293,42 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
               {confidence === 1 ? 'rough' : confidence === 2 ? 'fine' : 'confirmed'}
             </span>
           </div>
+        </div>
+
+        {/* ── Probe ─────────────────────────────────────────────── */}
+        {/* One targeted question about this node's core assumption. Fires only on
+            an explicit click (or Cmd+Shift+A) — never automatically. */}
+        <div style={sectionDivider}>
+          {!probe ? (
+            <button
+              onClick={startNodeProbe}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'none',
+                border: '1px solid var(--tension-mid)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--text-11)',
+                color: 'var(--tension)',
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--tension)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--tension-mid)' }}
+            >
+              <Crosshair size={11} />
+              Probe
+            </button>
+          ) : (
+            <ProbeCard
+              status={probe.status}
+              question={probe.question}
+              errorMsg={probe.errorMsg}
+              onSpawn={handleSpawnFromProbe}
+              onDismiss={() => setProbe(null)}
+            />
+          )}
         </div>
 
         {/* ── Connections ───────────────────────────────────────── */}

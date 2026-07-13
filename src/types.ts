@@ -22,6 +22,9 @@ export interface ThreadNode {
   confidence: 1 | 2 | 3    // 1=rough, 2=fine (default), 3=confirmed
   // Session this node was last created/reinforced in
   session_id: number        // starts at 1
+  // Flow: when the node's label / description / organizer was last edited.
+  // Distinct from last_reinforced_at (which also bumps on non-edit reinforcement).
+  lastEditedAt?: string
   // Focus node that was active when this node was created
   createdWithFocus?: string | null
   // Resolution / lifecycle
@@ -60,6 +63,23 @@ export interface ThreadProject {
   greetingStyle: 'action' | 'question'
   currentSession: number    // increments on each "Save my place"
   savedAt?: string
+  // ─── Flow (re-entry) ──────────────────────────────────────────────────────
+  // The user's own typed commitment sentence from the last "Save my place".
+  focusCommitment?: string
+  // The session that was active when focusCommitment was written (the session
+  // that ended with the last Save My Place). Previous-session lookups key off this.
+  focusCommitmentSession?: number
+  // Snapshot of the draft (last ~200 words) at the moment Save My Place ran —
+  // used only as context for the Replay AI summary.
+  focusDraftSnapshot?: string
+  // Cursor position to restore on re-entry (0-indexed line + char offset in line).
+  lastCursorLine?: number | null
+  lastCursorOffset?: number | null
+  // ─── Trace (dismissed Ghost Edge pairs) ────────────────────────────────────
+  // Node-id pairs the user has dismissed from Trace. Stored in BOTH orderings
+  // ("A|B" and "B|A") so a scan's direction never matters. A pair listed here is
+  // permanently excluded from future Ghost Edge suggestions.
+  dismissedPairs?: string[]
 }
 
 // ─── Greeting band sentence ────────────────────────────────────────────────────

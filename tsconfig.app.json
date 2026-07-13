@@ -21,5 +21,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "// exclude": "src/eval holds Node-based eval tooling (not shipped app code); keep it out of the browser build",
+  "exclude": ["src/eval"]
 }

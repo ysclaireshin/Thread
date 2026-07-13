@@ -184,9 +184,46 @@ html, body, #root {
   50%       { opacity: 1.0; }
 }
 
+/* Map view: current-focus pill border pulse (animates SVG rect stroke) */
+@keyframes focus-pulse {
+  0%, 100% { stroke: rgba(232, 168, 74, 0.5); }
+  50%       { stroke: rgba(232, 168, 74, 1.0); }
+}
+
 @keyframes comet-pulse {
   0%, 100% { opacity: 0.8; }
   50%       { opacity: 1.0; }
+}
+
+/* Trace: Ghost Edge soft pulse — slower and more subtle than focus-pulse, so a
+   Ghost Edge reads as present but tentative, never attention-grabbing. */
+@keyframes ghost-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.65; }
+}
+
+/* Trace: scan trigger hover (both Scan for Patterns and Deep Scan). */
+.trace-scan-btn:not(:disabled):hover {
+  border-color: var(--core);
+  color: var(--text-primary);
+}
+
+/* Trace: resolution popover buttons. */
+.trace-accept-btn:hover {
+  background: var(--core);
+  color: var(--text-inverted);
+}
+.trace-dismiss-btn:hover {
+  border-color: var(--tension);
+  color: var(--tension);
+}
+
+/* Trace: transient empty/error message fade-out. */
+@keyframes trace-fade {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @keyframes liquid-morph {

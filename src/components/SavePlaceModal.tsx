@@ -5,12 +5,18 @@ import { useStore } from '../store'
 interface Props { onClose: () => void }
 
 export function SavePlaceModal({ onClose }: Props) {
-  const { nodes, addNode, setFocus, updateNode, commitSession } = useStore()
+  const { nodes, addNode, setFocus, updateNode, commitSession, saveFocusCommitment } = useStore()
   const [input, setInput] = useState('')
   const [step, setStep] = useState<'ask' | 'pick'>('ask')
   const [matches, setMatches] = useState<typeof nodes>([])
 
-  function finish() { commitSession(); onClose() }
+  function finish() {
+    // Store the user's exact sentence as the Flow commitment before the session
+    // counter advances — Flow reads it back verbatim on next load.
+    saveFocusCommitment(input)
+    commitSession()
+    onClose()
+  }
 
   function handleAsk() {
     if (!input.trim()) return
