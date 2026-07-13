@@ -1,6 +1,45 @@
-# React + TypeScript + Vite
+# thread-solar
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Getting started
+
+Each person runs the app on their **own machine** — you cannot open a teammate's
+`localhost` from your computer. Follow these steps to run it locally.
+
+**Prerequisites:** [Node.js](https://nodejs.org) 18+ and npm.
+
+```bash
+# 1. Clone the repo (or `git pull` if you already have it)
+git clone https://github.com/ysclaireshin/Thread.git
+cd Thread            # folder name may be thread-solar depending on your clone
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up your API keys
+cp .env.example .env.local
+# then open .env.local and paste your own ANTHROPIC_API_KEY and GROQ_API_KEY
+# (see .env.example for where to get them)
+
+# 4. Start the dev server
+npm run dev
+```
+
+The app runs at **http://localhost:5181** (configured in `vite.config.ts`).
+Open that URL in your browser — not 1581 or any other port.
+
+**Troubleshooting**
+
+- **AI cards show errors / faults:** you're missing keys in `.env.local`. Copy
+  `.env.example`, fill in both `ANTHROPIC_API_KEY` and `GROQ_API_KEY`, then restart `npm run dev`.
+- **Blank page or old behavior:** run `git pull` to get the latest code, then
+  `npm install` again in case dependencies changed.
+- **Port already in use:** stop whatever is on 5181, or change the `port` in `vite.config.ts`.
+
+---
+
+## About the template
+
+This project was bootstrapped with React + TypeScript + Vite (HMR + ESLint).
 
 Currently, two official plugins are available:
 
