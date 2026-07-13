@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 
 export async function saveProject(project: any) {
+  // Cloud sync is optional — skip silently when Supabase isn't configured.
+  if (!supabase) return
   console.log('Saving to Supabase:', project.id, project.nodes.length)
   // Save project
   const { error: projectError } = await supabase
