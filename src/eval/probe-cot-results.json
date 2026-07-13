@@ -1,0 +1,164 @@
+{
+  "run_date": "2026-07-13T10:31:00.000Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "prompt_version": "cot-few-shot-v1 — three-step internal reasoning + three worked examples",
+  "reviewer_notes": [
+    "MODEL MATCH: this run's model (llama-3.3-70b-versatile via groq) is identical to the baseline model field in probe-baseline-results.json, so the comparison is NOT confounded by a model difference.",
+    "ONE CHANGE ONLY: system prompt replaced (byte-verified identical between lib/probe.ts and the frozen probe-cot.ts). max_tokens 60, temperature 0, model, and the user message are unchanged from baseline.",
+    "Objective fields (cot_answer, reasoning_leaked, word_count, preamble_present) are computed live in probe-cot-raw.json. word_count counts the FINAL question only. Sharpness winners, flaw_targeted, specificity, and hit are manual reviewer judgments against the planted flaws in probe-baseline.ts; baseline_answer is copied from probe-baseline-results.json (not reconstructed).",
+    "Sharpness was judged conservatively: a tie was recorded whenever CoT and baseline targeted the planted assumption with no meaningful difference, to avoid inflating CoT."
+  ],
+  "recall_cases": [
+    {
+      "pair_id": "R1",
+      "paragraph": "Thread solves re-entry friction by keeping a visual map of the user's ideas across sessions. Because the map persists, users can return to a project and immediately understand where they left off, eliminating the hour of re-reading that currently costs them productive time.",
+      "planted_flaw": "Assumes the map accurately represents where the user left off — but it only reflects manually tagged content, which may be incomplete or stale.",
+      "baseline_answer": "Does a visual map actually reduce re-reading time?",
+      "cot_answer": "Does a visual map always help users understand where they left off?",
+      "reasoning_leaked": false,
+      "word_count": 12,
+      "preamble_present": false,
+      "flaw_targeted": "other_real",
+      "content_specificity_score": 2,
+      "sharpness_winner": "tie",
+      "sharpness_reasoning": "Both question the map's benefit (time saved vs understanding) without naming that the map only reflects manually tagged content, so neither reaches the planted accuracy flaw.",
+      "hit": false
+    },
+    {
+      "pair_id": "R2",
+      "paragraph": "Students who struggle with re-entry friction are the primary target for Thread. These students independently discover workarounds like 'parking on the hill' — writing session-end bullet points about what was done and what comes next. Thread automates and improves this existing behavior.",
+      "planted_flaw": "Assumes students who already park on the hill are the right target — but the students with the most acute friction may be the ones who do nothing at session end.",
+      "baseline_answer": "Do students actually use workarounds like \"parking on the hill\"?",
+      "cot_answer": "Does automating workarounds help students who struggle with re-entry friction?",
+      "reasoning_leaked": false,
+      "word_count": 10,
+      "preamble_present": false,
+      "flaw_targeted": "other_real",
+      "content_specificity_score": 2,
+      "sharpness_winner": "tie",
+      "sharpness_reasoning": "Neither names the self-selection flaw; both stay on whether the workaround or its automation helps students generally, missing that the parkers may already be the wrong target.",
+      "hit": false
+    },
+    {
+      "pair_id": "R3",
+      "paragraph": "The Tab-to-tag hotkey solves the interruption problem. Instead of stopping to open a modal and categorize an idea, users press Tab on selected text, the node is created instantly, and focus returns to the editor. The cognitive cost of tagging drops to near zero.",
+      "planted_flaw": "Assumes the cognitive cost is the hotkey mechanics — but the real cost may be the decision of what/when to tag, not the mechanical Tab press.",
+      "baseline_answer": "Is pressing Tab truly a near-zero cognitive cost action?",
+      "cot_answer": "Does pressing Tab actually drop the cognitive cost to near zero?",
+      "reasoning_leaked": false,
+      "word_count": 11,
+      "preamble_present": false,
+      "flaw_targeted": "other_real",
+      "content_specificity_score": 2,
+      "sharpness_winner": "tie",
+      "sharpness_reasoning": "The two questions are near-paraphrases; both challenge the near-zero-cost claim without isolating the decision of what/when to tag as the real interruption.",
+      "hit": false
+    },
+    {
+      "pair_id": "R4",
+      "paragraph": "Thread's map view shows ideas as a force-directed graph with manual connections only. Because every connection requires a deliberate Shift-click from the user, every edge on the map is semantically meaningful — the graph represents the user's actual thinking, not an algorithmic inference.",
+      "planted_flaw": "Assumes deliberate connections are semantically meaningful by virtue of being deliberate — but deliberateness is not accuracy; deliberate-but-wrong edges can mislead.",
+      "baseline_answer": "Does Shift-clicking always reflect the user's actual thinking?",
+      "cot_answer": "Does a Shift-click always capture the user's true intention?",
+      "reasoning_leaked": false,
+      "word_count": 9,
+      "preamble_present": false,
+      "flaw_targeted": "planted",
+      "content_specificity_score": 2,
+      "sharpness_winner": "baseline",
+      "sharpness_reasoning": "Baseline's 'reflect the user's actual thinking' targets the deliberate-is-not-accurate gap more directly; CoT's 'capture true intention' drifts toward intent, which is the deliberate side rather than the accuracy the flaw attacks.",
+      "hit": true
+    },
+    {
+      "pair_id": "R5",
+      "paragraph": "The greeting band shows the user's exact commitment sentence from their last session, verbatim and unmodified. Because this is the user's own words rather than an AI summary, it is more trustworthy and more psychologically binding — research on implementation intentions confirms that specific, self-authored plans reduce procrastination more effectively than externally generated ones.",
+      "planted_flaw": "Assumes the session-end sentence is specific and well-formed — but at session-end (fatigued) users may write something vague, and the implementation-intention effect only holds for specific plans.",
+      "baseline_answer": "Does the user recall authoring those exact words?",
+      "cot_answer": "Does using one's own words make a plan more effective, or can an AI summary be just as binding?",
+      "reasoning_leaked": false,
+      "word_count": 19,
+      "preamble_present": false,
+      "flaw_targeted": "other_real",
+      "content_specificity_score": 2,
+      "sharpness_winner": "cot",
+      "sharpness_reasoning": "CoT attacks the self-authored-is-better claim head-on ('or can an AI summary be just as binding'), whereas baseline drifted to whether the user recalls authoring the words — off the claim entirely; CoT is closer, though it still does not name the fatigue/vagueness precondition.",
+      "hit": false
+    }
+  ],
+  "precision_cases": [
+    {
+      "pair_id": "P1",
+      "baseline_answer": "Is client-side storage sufficient for data persistence?",
+      "cot_answer": "Does client-side storage meet the app's scalability needs?",
+      "reasoning_leaked": false,
+      "word_count": 8,
+      "preamble_present": false,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P2",
+      "baseline_answer": "Was user testing representative of actual users?",
+      "cot_answer": "Does removing features that are unintuitive always improve the overall user experience?",
+      "reasoning_leaked": false,
+      "word_count": 12,
+      "preamble_present": false,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P3",
+      "baseline_answer": "Is Shift-clicking the source node a valid action?",
+      "cot_answer": "Does holding Shift simplify the connection process for users?",
+      "reasoning_leaked": false,
+      "word_count": 9,
+      "preamble_present": false,
+      "content_specificity_score": 1,
+      "false_positive_type": "generic_noise",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P4",
+      "baseline_answer": "Is a tension node always distinct from a core idea?",
+      "cot_answer": "Does a coral label reliably indicate unresolved thinking?",
+      "reasoning_leaked": false,
+      "word_count": 8,
+      "preamble_present": false,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P5",
+      "baseline_answer": "Are all connections equally important?",
+      "cot_answer": "Does a note's importance correlate with the number of connections it has?",
+      "reasoning_leaked": false,
+      "word_count": 12,
+      "preamble_present": false,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    }
+  ],
+  "summary": {
+    "recall_hit_rate": "1/5",
+    "false_positive_rate": "5/5",
+    "avg_specificity_recall": "2.0/3",
+    "reasoning_leaked_count": 0,
+    "word_count_violations": 0,
+    "sharpness_comparison": {
+      "cot_wins": 1,
+      "baseline_wins": 1,
+      "ties": 3,
+      "verdict": "No improvement"
+    }
+  },
+  "comparison_to_baseline": {
+    "recall_delta": "same",
+    "false_positive_delta": "same",
+    "specificity_delta": "same",
+    "primary_finding": "CoT + few-shot produced clean output (0/10 reasoning leaks, 0 word-count violations) but no measurable gain — recall 1/5, false positives 5/5, specificity 2.0/3 all unchanged, with 1 sharpness win, 1 loss, and 3 ties — so it is not worth adding for this content and model."
+  }
+}

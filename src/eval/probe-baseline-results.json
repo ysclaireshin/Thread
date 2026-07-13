@@ -1,0 +1,116 @@
+{
+  "run_date": "2026-07-13T10:26:43.390Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "prompt_version": "baseline-v1 — single-paragraph assumption prompt (Trial 2 control)",
+  "reviewer_notes": [
+    "Objective fields (returned_question, word_count) come from the live run in probe-baseline-raw.json. Subjective fields (content_specificity_score 1-3, flaw_targeted, hit, false_positive, false_positive_type) are reviewer judgments against the planted flaws in probe-baseline.ts.",
+    "MODEL REALITY: /api/chat routes to the Groq proxy (llama-3.3-70b-versatile), not the Haiku id in the request body. Baseline was measured on Llama 3.3 70B. Trial 4 runs on the same model, so the comparison is not confounded.",
+    "PRECISION SCORING: Probe's user message always asks for a challenging question, so on clean paragraphs the model reliably fires a flaw-implying question. Per probe-baseline.ts, any invented/flaw-implying or generic question on a clean paragraph is a false positive."
+  ],
+  "recall_cases": [
+    {
+      "pair_id": "R1",
+      "paragraph_id": 1,
+      "answer": "Does a visual map actually reduce re-reading time?",
+      "word_count": 8,
+      "content_specificity_score": 2,
+      "flaw_targeted": "other_real",
+      "planted_flaw": "Map may not accurately represent where the user left off — it only reflects manually tagged content, which may be incomplete or stale.",
+      "hit": false
+    },
+    {
+      "pair_id": "R2",
+      "paragraph_id": 2,
+      "answer": "Do students actually use workarounds like \"parking on the hill\"?",
+      "word_count": 10,
+      "content_specificity_score": 2,
+      "flaw_targeted": "other_real",
+      "planted_flaw": "Students who already park on the hill may be the wrong target; those with the most acute friction may do nothing at session end.",
+      "hit": false
+    },
+    {
+      "pair_id": "R3",
+      "paragraph_id": 3,
+      "answer": "Is pressing Tab truly a near-zero cognitive cost action?",
+      "word_count": 9,
+      "content_specificity_score": 2,
+      "flaw_targeted": "other_real",
+      "planted_flaw": "The real cognitive cost is the decision of what/when to tag, not the mechanical Tab press.",
+      "hit": false
+    },
+    {
+      "pair_id": "R4",
+      "paragraph_id": 4,
+      "answer": "Does Shift-clicking always reflect the user's actual thinking?",
+      "word_count": 8,
+      "content_specificity_score": 2,
+      "flaw_targeted": "planted",
+      "planted_flaw": "Deliberate connections are not necessarily accurate; intentionality does not guarantee semantic validity.",
+      "hit": true
+    },
+    {
+      "pair_id": "R5",
+      "paragraph_id": 5,
+      "answer": "Does the user recall authoring those exact words?",
+      "word_count": 8,
+      "content_specificity_score": 2,
+      "flaw_targeted": "other_real",
+      "planted_flaw": "Session-end commitment sentences may be vague (fatigue), so the implementation-intention effect (which needs specific plans) may not apply.",
+      "hit": false
+    }
+  ],
+  "precision_cases": [
+    {
+      "pair_id": "P1",
+      "paragraph_id": 6,
+      "answer": "Is client-side storage sufficient for data persistence?",
+      "word_count": 7,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P2",
+      "paragraph_id": 7,
+      "answer": "Was user testing representative of actual users?",
+      "word_count": 7,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P3",
+      "paragraph_id": 8,
+      "answer": "Is Shift-clicking the source node a valid action?",
+      "word_count": 8,
+      "content_specificity_score": 1,
+      "false_positive_type": "generic_noise",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P4",
+      "paragraph_id": 9,
+      "answer": "Is a tension node always distinct from a core idea?",
+      "word_count": 10,
+      "content_specificity_score": 2,
+      "false_positive_type": "fluent_but_wrong",
+      "false_positive": true
+    },
+    {
+      "pair_id": "P5",
+      "paragraph_id": 10,
+      "answer": "Are all connections equally important?",
+      "word_count": 5,
+      "content_specificity_score": 1,
+      "false_positive_type": "generic_noise",
+      "false_positive": true
+    }
+  ],
+  "summary": {
+    "recall_hit_rate": "1/5",
+    "false_positive_rate": "5/5",
+    "avg_specificity_recall": "2.0/3",
+    "preamble_present_count": 0,
+    "word_count_violations": 0
+  }
+}

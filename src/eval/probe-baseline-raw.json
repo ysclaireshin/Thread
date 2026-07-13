@@ -1,0 +1,80 @@
+{
+  "run_date": "2026-07-13T10:26:43.390Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "total_api_calls": 10,
+  "recall": [
+    {
+      "paragraph_id": 1,
+      "ok": true,
+      "returned_question": "Does a visual map actually reduce re-reading time?",
+      "word_count": 8,
+      "note": ""
+    },
+    {
+      "paragraph_id": 2,
+      "ok": true,
+      "returned_question": "Do students actually use workarounds like \"parking on the hill\"?",
+      "word_count": 10,
+      "note": ""
+    },
+    {
+      "paragraph_id": 3,
+      "ok": true,
+      "returned_question": "Is pressing Tab truly a near-zero cognitive cost action?",
+      "word_count": 9,
+      "note": ""
+    },
+    {
+      "paragraph_id": 4,
+      "ok": true,
+      "returned_question": "Does Shift-clicking always reflect the user's actual thinking?",
+      "word_count": 8,
+      "note": ""
+    },
+    {
+      "paragraph_id": 5,
+      "ok": true,
+      "returned_question": "Does the user recall authoring those exact words?",
+      "word_count": 8,
+      "note": ""
+    }
+  ],
+  "precision": [
+    {
+      "paragraph_id": 6,
+      "ok": true,
+      "returned_question": "Is client-side storage sufficient for data persistence?",
+      "word_count": 7,
+      "note": ""
+    },
+    {
+      "paragraph_id": 7,
+      "ok": true,
+      "returned_question": "Was user testing representative of actual users?",
+      "word_count": 7,
+      "note": ""
+    },
+    {
+      "paragraph_id": 8,
+      "ok": true,
+      "returned_question": "Is Shift-clicking the source node a valid action?",
+      "word_count": 8,
+      "note": ""
+    },
+    {
+      "paragraph_id": 9,
+      "ok": true,
+      "returned_question": "Is a tension node always distinct from a core idea?",
+      "word_count": 10,
+      "note": ""
+    },
+    {
+      "paragraph_id": 10,
+      "ok": true,
+      "returned_question": "Are all connections equally important?",
+      "word_count": 5,
+      "note": ""
+    }
+  ]
+}

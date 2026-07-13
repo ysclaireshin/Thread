@@ -1,0 +1,111 @@
+{
+  "run_date": "2026-07-13T10:30:53.132Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "prompt_version": "cot-few-shot-v1 — three-step internal reasoning + three worked examples",
+  "total_api_calls": 10,
+  "recall": [
+    {
+      "paragraph_id": 1,
+      "ok": true,
+      "cot_answer": "Does a visual map always help users understand where they left off?",
+      "final_question": "Does a visual map always help users understand where they left off?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 12,
+      "note": ""
+    },
+    {
+      "paragraph_id": 2,
+      "ok": true,
+      "cot_answer": "Does automating workarounds help students who struggle with re-entry friction?",
+      "final_question": "Does automating workarounds help students who struggle with re-entry friction?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 10,
+      "note": ""
+    },
+    {
+      "paragraph_id": 3,
+      "ok": true,
+      "cot_answer": "Does pressing Tab actually drop the cognitive cost to near zero?",
+      "final_question": "Does pressing Tab actually drop the cognitive cost to near zero?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 11,
+      "note": ""
+    },
+    {
+      "paragraph_id": 4,
+      "ok": true,
+      "cot_answer": "Does a Shift-click always capture the user's true intention?",
+      "final_question": "Does a Shift-click always capture the user's true intention?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 9,
+      "note": ""
+    },
+    {
+      "paragraph_id": 5,
+      "ok": true,
+      "cot_answer": "Does using one's own words make a plan more effective, or can an AI summary be just as binding?",
+      "final_question": "Does using one's own words make a plan more effective, or can an AI summary be just as binding?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 19,
+      "note": ""
+    }
+  ],
+  "precision": [
+    {
+      "paragraph_id": 6,
+      "ok": true,
+      "cot_answer": "Does client-side storage meet the app's scalability needs?",
+      "final_question": "Does client-side storage meet the app's scalability needs?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 8,
+      "note": ""
+    },
+    {
+      "paragraph_id": 7,
+      "ok": true,
+      "cot_answer": "Does removing features that are unintuitive always improve the overall user experience?",
+      "final_question": "Does removing features that are unintuitive always improve the overall user experience?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 12,
+      "note": ""
+    },
+    {
+      "paragraph_id": 8,
+      "ok": true,
+      "cot_answer": "Does holding Shift simplify the connection process for users?",
+      "final_question": "Does holding Shift simplify the connection process for users?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 9,
+      "note": ""
+    },
+    {
+      "paragraph_id": 9,
+      "ok": true,
+      "cot_answer": "Does a coral label reliably indicate unresolved thinking?",
+      "final_question": "Does a coral label reliably indicate unresolved thinking?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 8,
+      "note": ""
+    },
+    {
+      "paragraph_id": 10,
+      "ok": true,
+      "cot_answer": "Does a note's importance correlate with the number of connections it has?",
+      "final_question": "Does a note's importance correlate with the number of connections it has?",
+      "reasoning_leaked": false,
+      "preamble_present": false,
+      "word_count": 12,
+      "note": ""
+    }
+  ]
+}
