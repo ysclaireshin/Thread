@@ -41,28 +41,6 @@ function staleDays(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000))
 }
 
-// ─── Confidence squares ───────────────────────────────────────────────────────
-
-function ConfidenceDots({ confidence }: { confidence: 1 | 2 | 3 }) {
-  return (
-    <span style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
-      {([1, 2, 3] as const).map(i => (
-        <span
-          key={i}
-          title={i === 1 ? 'Rough' : i === 2 ? 'Fine' : 'Confirmed'}
-          style={{
-            display: 'inline-block',
-            width: '3px',
-            height: '3px',
-            borderRadius: '1px',
-            background: i <= confidence ? 'var(--text-secondary)' : 'var(--surface-4)',
-          }}
-        />
-      ))}
-    </span>
-  )
-}
-
 // ─── Mirror-div editor with inline anchor highlights ─────────────────────────
 
 interface Segment {
@@ -459,7 +437,6 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
   const isHighlighted = highlightedNodeId === id
   const stale = isStale(node.last_reinforced_at)
   const isTension = node.organizer === 'point_of_tension'
-  const confidence = node.confidence ?? 2
   const isGlow = flowGlowIds.includes(id)
   const rowRef = useRef<HTMLDivElement>(null)
 

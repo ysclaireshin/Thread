@@ -1,4 +1,4 @@
-import { ReactNode, useRef, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { motion, useInView } from 'motion/react'
 import type { Transition, Variant } from 'framer-motion'
 import type { UseInViewOptions } from 'motion/react'

@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import type { Transition } from 'framer-motion'
-import { Children, cloneElement, ReactElement, useEffect, useState, useId } from 'react'
+import { Children, cloneElement, type ReactElement, useEffect, useState, useId } from 'react'
 
 export type AnimatedBackgroundProps = {
   children: ReactElement<{ 'data-id': string }>[] | ReactElement<{ 'data-id': string }>

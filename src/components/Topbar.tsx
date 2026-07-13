@@ -438,7 +438,7 @@ function AddPopover() {
 
 // ─── Main Topbar ──────────────────────────────────────────────────────────────
 
-export function Topbar({ onAddNode, reentryLoading = false }: Props) {
+export function Topbar({ reentryLoading = false }: Props) {
   const {
     nodes, edges, focusMode, setFocusMode, viewMode, setViewMode,
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
