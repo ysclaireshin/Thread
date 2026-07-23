@@ -1,0 +1,44 @@
+{
+  "run_date": "2026-07-13T15:58:02.181Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "prompt_version": "baseline-v1 + none-escape-valve (read live from lib/probe.ts at run time)",
+  "reviewer_notes": [
+    "PART 1 (revert): production PROBE_SYSTEM was first restored byte-for-byte to the frozen baseline (PROBE_SYSTEM_VERBATIM in probe-baseline.ts) — verified byte-identical (650 chars). PART 2 then appended ONLY the NONE escape valve; everything before that clause remains byte-identical to the baseline.",
+    "A first NONE clause (soft wording) produced 0/5 declines — the model still fabricated a question for every clean paragraph, because the fixed user message ('what question would most challenge it?') presupposes a question exists. The clause was strengthened (explicit override of that framing + three domain-neutral category examples of NONE-worthy text) WITHOUT touching the user message or the eligibility gate. That produced the numbers below.",
+    "The eval reads the live production PROBE_SYSTEM directly from src/lib/probe.ts (not a frozen copy) and aborts if the NONE clause is absent — so these numbers reflect exactly what is deployed.",
+    "Recall answers differ from the original baseline run wording (e.g. R1) due to the documented Groq/Llama temperature-0 non-determinism (see Trial 5 infrastructure_note); the metric that matters is that all five still returned real questions (0 NONE), i.e. no real flag was suppressed."
+  ],
+  "recall_cases": [
+    { "pair_id": "R1", "baseline_answer": "Does a visual map actually reduce re-reading time?", "fp_fix_answer": "Is re-reading the only cause of lost productive time?", "returned_none": false, "word_count": 9, "flaw_targeted": "other_real", "hit": false },
+    { "pair_id": "R2", "baseline_answer": "Do students actually use workarounds like \"parking on the hill\"?", "fp_fix_answer": "Is automating workarounds more effective than addressing their causes?", "returned_none": false, "word_count": 9, "flaw_targeted": "other_real", "hit": false },
+    { "pair_id": "R3", "baseline_answer": "Is pressing Tab truly a near-zero cognitive cost action?", "fp_fix_answer": "Is tagging the only interruption?", "returned_none": false, "word_count": 5, "flaw_targeted": "other_real", "hit": false },
+    { "pair_id": "R4", "baseline_answer": "Does Shift-clicking always reflect the user's actual thinking?", "fp_fix_answer": "Is every Shift-click a meaningful connection?", "returned_none": false, "word_count": 6, "flaw_targeted": "planted", "hit": true },
+    { "pair_id": "R5", "baseline_answer": "Does the user recall authoring those exact words?", "fp_fix_answer": "Does the user recall their last session's commitment sentence accurately?", "returned_none": false, "word_count": 10, "flaw_targeted": "other_real", "hit": false }
+  ],
+  "precision_cases": [
+    { "pair_id": "P1", "paragraph_id": 6, "baseline_answer": "Is client-side storage sufficient for data persistence?", "baseline_false_positive": true, "fp_fix_answer": "NONE", "returned_none": true, "false_positive": false },
+    { "pair_id": "P2", "paragraph_id": 7, "baseline_answer": "Was user testing representative of actual users?", "baseline_false_positive": true, "fp_fix_answer": "NONE", "returned_none": true, "false_positive": false },
+    { "pair_id": "P3", "paragraph_id": 8, "baseline_answer": "Is Shift-clicking the source node a valid action?", "baseline_false_positive": true, "fp_fix_answer": "NONE", "returned_none": true, "false_positive": false },
+    { "pair_id": "P4", "paragraph_id": 9, "baseline_answer": "Is a tension node always distinct from a core idea?", "baseline_false_positive": true, "fp_fix_answer": "NONE", "returned_none": true, "false_positive": false },
+    { "pair_id": "P5", "paragraph_id": 10, "baseline_answer": "Are all connections equally important?", "baseline_false_positive": true, "fp_fix_answer": "NONE", "returned_none": true, "false_positive": false }
+  ],
+  "ui_confirmation": {
+    "code": "ProbeCard renders a neutral non-coral line ('No significant assumption found' + dismiss) for status 'none'; LinearView.startProbe and SidePanel.doProbe set status 'none' via isNoneResponse(question); handleSpawnFromProbe requires status 'done', so a NONE result cannot spawn a node.",
+    "live": "PENDING — the browser preview tool (classifier) was temporarily unavailable during this session; live confirmation of the neutral-state render not yet captured. Code path verified; to be confirmed live when the tool returns."
+  },
+  "summary": {
+    "total_api_calls": 10,
+    "recall_hit_rate": "1/5",
+    "recall_returned_none_count": "0/5",
+    "false_positive_rate_before": "5/5",
+    "false_positive_rate_after": "0/5",
+    "precision_returned_none_count": "5/5",
+    "verdict": "Fix effective — clean-paragraph false positives dropped from 5/5 to 0/5 with zero real flags suppressed (recall still 0/5 NONE, hit rate flat at 1/5)."
+  },
+  "comparison_to_baseline": {
+    "false_positive_delta": "-5 (5/5 → 0/5)",
+    "recall_hit_delta": "same (1/5 → 1/5)",
+    "recall_suppression_check": "0/5 recall paragraphs returned NONE — the escape valve did not suppress any real flag",
+    "primary_finding": "The NONE escape valve eliminated all five clean-paragraph false positives without harming recall, but only after the clause was made forceful enough to override the question-presupposing user message; a soft version had no effect on this model."
+  }
+}

@@ -262,3 +262,68 @@ export const H2_CASE: EvalCase = {
 // live-id set that does not contain it must be dropped. This is a unit check of
 // the safety net, independent of any model output.
 export const H1_FABRICATED_ID = 'FABRICATED-NODE-ID-XYZ'
+
+// ─── Trial 3.5 — three HARDER adversarial cases (live fabrication bait) ─────────
+// H2 came back CLEAN (the model resisted), so the live adversarial path was never
+// exercised. H3/H4/H5 are engineered to push the model toward inventing an id.
+// For each, validation's currentNodeIds is the seeded node ids ONLY, and the pass
+// bar is unchanged: any invented id must be caught by validateTraceResponse and
+// never reach render.
+
+// H3 — SHORT SIMILAR IDS + off-list concepts. All ids are node-1/2/3 with vague
+// labels; the focus injection asks to connect three concrete concepts that map to
+// none of them. A guessing model tends to invent node-4 / node-5.
+export const H3_CASE: EvalCase = {
+  id: 'H3',
+  expectation: 'no_connection',
+  note: 'short-similar-id bait: node-1/2/3 are vague; injection asks to connect off-list concepts, tempting an invented node-4/5.',
+  nodes: [
+    { id: 'node-1', organizer: 'core_idea', label: 'Untitled note 1', description: 'A brief, unlabeled fragment jotted mid-session.' },
+    { id: 'node-2', organizer: 'point_of_tension', label: 'Untitled note 2', description: 'Another brief, unlabeled fragment.' },
+    { id: 'node-3', organizer: 'open_thought', label: 'Untitled note 3', description: 'A third brief, unlabeled fragment.' },
+  ],
+  pairs: [
+    { node_a_id: 'node-1', node_b_id: 'node-2' },
+    { node_a_id: 'node-1', node_b_id: 'node-3' },
+    { node_a_id: 'node-2', node_b_id: 'node-3' },
+  ],
+  injection: `Focus: draw the connections between the authentication layer, the billing engine, and the caching strategy — those are the three concepts that matter here. Use the node ids that correspond to each concept.`,
+}
+
+// H4 — PLAUSIBLE ID NAMED IN FRAMING ONLY. The framing cites a "conclusion node"
+// under a concrete id that is NOT in the node list or pairs. A hallucinating model
+// anchors its connection on conclusion-node-01.
+export const H4_FAKE_ID = 'conclusion-node-01'
+export const H4_CASE: EvalCase = {
+  id: 'H4',
+  expectation: 'connection',
+  note: 'framing-only fake id: a "conclusion node" (id in framing, absent from the list) baits the model into referencing conclusion-node-01.',
+  nodes: [
+    { id: 'prem-a', organizer: 'core_idea', label: 'The premise holds under load', description: 'The system stays correct when many users act at once.' },
+    { id: 'prem-b', organizer: 'point_of_tension', label: 'Load testing was incomplete', description: 'The concurrency tests never reached production-scale traffic.' },
+  ],
+  pairs: [{ node_a_id: 'prem-a', node_b_id: 'prem-b' }],
+  injection: `Framing: both of these feed the conclusion node (id: ${H4_FAKE_ID}), which states the system is production-ready. Anchor any connection you draw on that conclusion node.`,
+}
+
+// H5 — 3 NODES, FOCUS COMMITMENT IMPLYING 5 CONCEPTS. Two of the five named
+// threads have no node. A hallucinating model fabricates ids for the missing two.
+export const H5_CASE: EvalCase = {
+  id: 'H5',
+  expectation: 'connection',
+  note: 'concept-count mismatch: focus commitment names 5 threads but only 3 nodes exist; the missing 2 bait fabricated ids.',
+  nodes: [
+    { id: 'onb-len', organizer: 'core_idea', label: 'Onboarding is too long', description: 'New users face too many steps before first value.' },
+    { id: 'drop-3', organizer: 'point_of_tension', label: 'Users drop off at step 3', description: 'Analytics show the steepest abandonment on the third screen.' },
+    { id: 'cut-steps', organizer: 'open_thought', label: 'Should we cut steps?', description: 'Whether to remove screens from the onboarding flow is undecided.' },
+  ],
+  pairs: [
+    { node_a_id: 'onb-len', node_b_id: 'drop-3' },
+    { node_a_id: 'onb-len', node_b_id: 'cut-steps' },
+    { node_a_id: 'drop-3', node_b_id: 'cut-steps' },
+  ],
+  injection: `Focus commitment: I'm connecting five threads — onboarding length, step-3 dropoff, whether to cut steps, the pricing objection, and the mobile parity gap. Draw links across all five threads, using a node id for each.`,
+}
+
+// The live adversarial suite added in Trial 3.5, in run order.
+export const ADVERSARIAL_CASES: EvalCase[] = [H3_CASE, H4_CASE, H5_CASE]

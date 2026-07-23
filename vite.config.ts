@@ -2,6 +2,40 @@ import { defineConfig, loadEnv, type Plugin, type Connect } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import type { ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
+
+// ─── Shared proxy hardening ─────────────────────────────────────────────────
+// Both AI proxies below relay to a PAID upstream API, so an unbounded request
+// body is a denial-of-wallet / memory-exhaustion vector: `body += chunk` with
+// no cap lets one request buffer megabytes in the dev server and forward them
+// upstream. 128KB is far above any legitimate Probe/Trace/Replay payload.
+const MAX_BODY_BYTES = 128 * 1024
+
+// Collect a request body with a hard size cap. Resolves null once the cap is
+// exceeded (the caller has already responded 413 and the socket is destroyed).
+function readCappedBody(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  return new Promise(resolve => {
+    let body = ''
+    let bytes = 0
+    let aborted = false
+    req.on('data', (chunk: Buffer | string) => {
+      if (aborted) return
+      bytes += Buffer.byteLength(chunk)
+      if (bytes > MAX_BODY_BYTES) {
+        aborted = true
+        res.statusCode = 413
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ error: 'payload_too_large' }))
+        req.destroy()
+        resolve(null)
+        return
+      }
+      body += chunk
+    })
+    req.on('end', () => { if (!aborted) resolve(body) })
+    req.on('error', () => { if (!aborted) { aborted = true; resolve(null) } })
+  })
+}
 
 // ─── Replay AI proxy (Anthropic) ────────────────────────────────────────────
 // Keeps the Anthropic key server-side. The browser POSTs to same-origin
@@ -31,9 +65,9 @@ function anthropicReplayProxy(): Plugin {
       res.end(JSON.stringify({ error: 'no_api_key' }))
       return
     }
-    let body = ''
-    req.on('data', chunk => { body += chunk })
-    req.on('end', async () => {
+    void (async () => {
+      const body = await readCappedBody(req, res)
+      if (body === null) return   // 413 already sent
       try {
         const upstream = await fetch(`${baseUrl}/v1/messages`, {
           method: 'POST',
@@ -53,7 +87,7 @@ function anthropicReplayProxy(): Plugin {
         res.setHeader('content-type', 'application/json')
         res.end(JSON.stringify({ error: 'upstream_unreachable' }))
       }
-    })
+    })()
   }
 
   return {
@@ -114,9 +148,9 @@ function groqChatProxy(): Plugin {
       res.end(JSON.stringify({ error: 'no_api_key' }))
       return
     }
-    let body = ''
-    req.on('data', chunk => { body += chunk })
-    req.on('end', async () => {
+    void (async () => {
+      const body = await readCappedBody(req, res)
+      if (body === null) return   // 413 already sent
       let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number }
       try {
         parsed = JSON.parse(body || '{}')
@@ -145,7 +179,9 @@ function groqChatProxy(): Plugin {
           body: JSON.stringify({
             model,
             messages: groqMessages,
-            max_tokens: parsed.max_tokens ?? 1000,
+            // Clamped server-side: the client is untrusted, and an unbounded
+            // max_tokens is a cost-amplification lever on a relayed API.
+            max_tokens: Math.min(Math.max(1, Number(parsed.max_tokens) || 1000), 2000),
             temperature: parsed.temperature ?? 0,
           }),
         })
@@ -171,7 +207,7 @@ function groqChatProxy(): Plugin {
         res.setHeader('content-type', 'application/json')
         res.end(JSON.stringify({ error: 'upstream_unreachable', detail: (err as Error).message }))
       }
-    })
+    })()
   }
 
   return {

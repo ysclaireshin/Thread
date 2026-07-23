@@ -14,8 +14,21 @@ export function cometOrbitParams(slotIndex: number) {
   }
 }
 
+// Planets snap to a small set of discrete rings instead of a continuous
+// radius per node. Near-equal centralities used to produce overlapping
+// "ring spaghetti"; quantizing keeps the system reading as clean concentric
+// orbits. Same ring ⇒ same angular velocity ⇒ the even spacing chosen at
+// init never drifts into clumps.
+export const RING_COUNT = 4
+export function ringIndex(centrality: number): number {
+  const t = (1 - Math.max(0.3, Math.min(1, centrality))) / 0.7
+  return Math.min(RING_COUNT - 1, Math.round(t * (RING_COUNT - 1)))
+}
+export function ringRadius(i: number): number {
+  return MIN_ORBIT + (i / (RING_COUNT - 1)) * (MAX_ORBIT - MIN_ORBIT)
+}
 export function planetOrbitR(centrality: number): number {
-  return MIN_ORBIT + (1 - Math.max(0.3, centrality)) / 0.7 * (MAX_ORBIT - MIN_ORBIT)
+  return ringRadius(ringIndex(centrality))
 }
 
 export function angularVelocity(orbitR: number): number {

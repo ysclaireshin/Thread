@@ -45,6 +45,7 @@
 //    never matters. This is the storage location for dismissed pairs.
 
 import type { ThreadNode, ThreadEdge, Organizer } from '../types'
+import { aiFetch } from './aiFetch'
 
 // ── Trial 3 (structured-output) Step 0 findings — verified before writing code ──
 // 1. REAL OUTPUT, NOT PLACEHOLDER. Trace has no "result card"; it renders Ghost
@@ -304,16 +305,14 @@ export async function runTraceScan(args: RunTraceArgs): Promise<TraceScanResult>
   // No eligible pairs (or nothing in scope) → empty state immediately, no call.
   if (pairs.length === 0) return { kind: 'empty' }
 
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: TRACE_MODEL,
-      max_tokens: TRACE_MAX_TOKENS,
-      temperature: TRACE_TEMPERATURE,
-      system: [{ type: 'text', text: TRACE_SYSTEM, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: buildUserMessage(scopedNodes, pairs) }],
-    }),
+  // aiFetch attaches the Supabase session token; the production endpoint
+  // requires it and meters the call against a server-side daily budget.
+  const res = await aiFetch('/api/chat', {
+    model: TRACE_MODEL,
+    max_tokens: TRACE_MAX_TOKENS,
+    temperature: TRACE_TEMPERATURE,
+    system: [{ type: 'text', text: TRACE_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: buildUserMessage(scopedNodes, pairs) }],
   })
   if (!res.ok) throw new Error(`http-${res.status}`)
 

@@ -111,8 +111,10 @@ export function SolarSystem() {
     const factor = e.deltaY > 0 ? 0.92 : 1.09
     const newZoom = Math.max(0.3, Math.min(4, anim.camera.tzoom * factor))
     anim.camera.tzoom = newZoom
-    if (newZoom < 0.75 && focusModeRef.current) {
-      setFocusMode(false)
+    // Zooming out far enough always recenters on the sun, so the whole
+    // system frames itself instead of drifting off wherever focus left it
+    if (newZoom < 0.75) {
+      if (focusModeRef.current) setFocusMode(false)
       anim.camera.tx = 0; anim.camera.ty = 0
     }
   }, [setFocusMode])

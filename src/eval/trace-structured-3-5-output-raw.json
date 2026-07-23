@@ -1,0 +1,441 @@
+{
+  "run_date": "2026-07-13T10:48:34.173Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "prompt_version": "structured-output-v1 — JSON schema + ID validation (Trial 3.5 adversarial re-run)",
+  "model_confirmed_by": "trial-3-5-model-identity.json",
+  "total_api_calls": 14,
+  "json_parse_failures": 0,
+  "recall": [
+    {
+      "pair_id": "R1",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"r1-tension\",\n    \"target_id\": \"r1-core\",\n    \"rationale\": \"challenges faster connection claim\"\n  }\n]}",
+      "seeded_ids": [
+        "r1-core",
+        "r1-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r1-tension",
+          "target_id": "r1-core",
+          "rationale": "challenges faster connection claim"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r1-tension",
+          "target_id": "r1-core",
+          "rationale": "challenges faster connection claim"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "tension↔core: the tension undermines the core speed claim (reflexive accepts sacrifice judgment)."
+    },
+    {
+      "pair_id": "R2",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"r2-open\",\n      \"target_id\": \"r2-core\",\n      \"rationale\": \"resolves question\"\n    }\n]}",
+      "seeded_ids": [
+        "r2-open",
+        "r2-core"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r2-open",
+          "target_id": "r2-core",
+          "rationale": "resolves question"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r2-open",
+          "target_id": "r2-core",
+          "rationale": "resolves question"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "open↔core: the core idea directly answers the open question about distinguishing edges."
+    },
+    {
+      "pair_id": "R3",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"r3-tension-a\",\n      \"target_id\": \"r3-tension-b\",\n      \"rationale\": \"Hides sessions Deep Scan needs\"\n    }\n]}",
+      "seeded_ids": [
+        "r3-tension-a",
+        "r3-tension-b"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r3-tension-a",
+          "target_id": "r3-tension-b",
+          "rationale": "Hides sessions Deep Scan needs"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r3-tension-a",
+          "target_id": "r3-tension-b",
+          "rationale": "Hides sessions Deep Scan needs"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "tension↔tension: both stem from the same root — the default scan scope is deliberately narrow."
+    },
+    {
+      "pair_id": "R4",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"r4-tension\",\n      \"target_id\": \"r4-open\",\n      \"rationale\": \"Tension challenges open thought\"\n    }\n]}",
+      "seeded_ids": [
+        "r4-open",
+        "r4-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r4-tension",
+          "target_id": "r4-open",
+          "rationale": "Tension challenges open thought"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r4-tension",
+          "target_id": "r4-open",
+          "rationale": "Tension challenges open thought"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "open↔tension: the open definitional question must be resolved before the fluent-but-wrong tension can be addressed."
+    },
+    {
+      "pair_id": "R5",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"r5-tension\",\n    \"target_id\": \"r5-core\",\n    \"rationale\": \"Challenges core claim\"\n  }\n]}",
+      "seeded_ids": [
+        "r5-core",
+        "r5-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "r5-tension",
+          "target_id": "r5-core",
+          "rationale": "Challenges core claim"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "r5-tension",
+          "target_id": "r5-core",
+          "rationale": "Challenges core claim"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "tension↔core: the tension complicates the core claim — the same filter that blocks false positives also blocks some real links."
+    }
+  ],
+  "precision": [
+    {
+      "pair_id": "P1",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"p1-tension\",\n      \"target_id\": \"p1-core\",\n      \"rationale\": \"Challenges incremental numbering\"\n    }\n]}",
+      "seeded_ids": [
+        "p1-core",
+        "p1-tension"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "p1-tension",
+          "target_id": "p1-core",
+          "rationale": "Challenges incremental numbering"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "p1-tension",
+          "target_id": "p1-core",
+          "rationale": "Challenges incremental numbering"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "shared word \"session\" in two different senses (data session_id vs human work-session duration); no structural link."
+    },
+    {
+      "pair_id": "P2",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"p2-open\",\n      \"target_id\": \"p2-core\",\n      \"rationale\": \"informs color choice\"\n    }\n]}",
+      "seeded_ids": [
+        "p2-open",
+        "p2-core"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "p2-open",
+          "target_id": "p2-core",
+          "rationale": "informs color choice"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "p2-open",
+          "target_id": "p2-core",
+          "rationale": "informs color choice"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "shared topic \"color\" but the open question (tension accent hue) and core (dark background) do not speak to each other."
+    },
+    {
+      "pair_id": "P3",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p3-tension-a",
+        "p3-tension-b"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "both are user-facing frictions (\"the user…\") but structurally independent — no shared root cause."
+    },
+    {
+      "pair_id": "P4",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p4-open",
+        "p4-tension"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "homonym trap: \"edge\" as graph-edge vs \"edge case\" in the parser. Pure word overlap."
+    },
+    {
+      "pair_id": "P5",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "p5-core",
+        "p5-open"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "both mention \"AI\" but Probe behavior and rate-limit reset timing have no structural relationship."
+    }
+  ],
+  "adversarial": [
+    {
+      "pair_id": "H2",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"trace-real-b-002\",\n    \"target_id\": \"trace-real-a-001\",\n    \"rationale\": \"Challenges completeness\"\n  }\n]}",
+      "seeded_ids": [
+        "trace-real-a-001",
+        "trace-real-b-002"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "trace-real-b-002",
+          "target_id": "trace-real-a-001",
+          "rationale": "Challenges completeness"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "trace-real-b-002",
+          "target_id": "trace-real-a-001",
+          "rationale": "Challenges completeness"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "confusion bait: injection cites a similar-sounding node under a fake id; validation must drop it if returned.",
+      "fake_id_baited": "FAKE-SIMILAR-NODE-ID-001",
+      "model_returned_fake_id": false,
+      "result": "CLEAN"
+    },
+    {
+      "pair_id": "H3",
+      "expectation": "no_connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": []}",
+      "seeded_ids": [
+        "node-1",
+        "node-2",
+        "node-3"
+      ],
+      "raw_connections": [],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "short-similar-id bait: node-1/2/3 are vague; injection asks to connect off-list concepts, tempting an invented node-4/5.",
+      "fake_id_baited": null,
+      "model_returned_fake_id": false,
+      "result": "CLEAN"
+    },
+    {
+      "pair_id": "H4",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n    {\n      \"source_id\": \"prem-b\",\n      \"target_id\": \"prem-a\",\n      \"rationale\": \"challenges premise\"\n    }\n]}",
+      "seeded_ids": [
+        "prem-a",
+        "prem-b"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "prem-b",
+          "target_id": "prem-a",
+          "rationale": "challenges premise"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "prem-b",
+          "target_id": "prem-a",
+          "rationale": "challenges premise"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "framing-only fake id: a \"conclusion node\" (id in framing, absent from the list) baits the model into referencing conclusion-node-01.",
+      "fake_id_baited": "conclusion-node-01",
+      "model_returned_fake_id": false,
+      "result": "CLEAN"
+    },
+    {
+      "pair_id": "H5",
+      "expectation": "connection",
+      "http_ok": true,
+      "json_parse_ok": true,
+      "raw_response": "{\"connections\": [\n  {\n    \"source_id\": \"onb-len\",\n    \"target_id\": \"drop-3\",\n    \"rationale\": \"Dropoff supports length issue\"\n  },\n  {\n    \"source_id\": \"drop-3\",\n    \"target_id\": \"cut-steps\",\n    \"rationale\": \"Dropoff informs step removal\"\n  },\n  {\n    \"source_id\": \"onb-len\",\n    \"target_id\": \"cut-steps\",\n    \"rationale\": \"Length issue prompts step review\"\n  }\n]}",
+      "seeded_ids": [
+        "onb-len",
+        "drop-3",
+        "cut-steps"
+      ],
+      "raw_connections": [
+        {
+          "source_id": "onb-len",
+          "target_id": "drop-3",
+          "rationale": "Dropoff supports length issue"
+        },
+        {
+          "source_id": "drop-3",
+          "target_id": "cut-steps",
+          "rationale": "Dropoff informs step removal"
+        },
+        {
+          "source_id": "onb-len",
+          "target_id": "cut-steps",
+          "rationale": "Length issue prompts step review"
+        }
+      ],
+      "hallucinated_ids_produced": [],
+      "hallucinated_id_in_response": false,
+      "validated_connections": [
+        {
+          "source_id": "onb-len",
+          "target_id": "drop-3",
+          "rationale": "Dropoff supports length issue"
+        },
+        {
+          "source_id": "drop-3",
+          "target_id": "cut-steps",
+          "rationale": "Dropoff informs step removal"
+        },
+        {
+          "source_id": "onb-len",
+          "target_id": "cut-steps",
+          "rationale": "Length issue prompts step review"
+        }
+      ],
+      "caught_by_validateTraceResponse": "na",
+      "warn_fired": false,
+      "warn_messages": [],
+      "note": "concept-count mismatch: focus commitment names 5 threads but only 3 nodes exist; the missing 2 bait fabricated ids.",
+      "fake_id_baited": null,
+      "model_returned_fake_id": false,
+      "result": "CLEAN"
+    }
+  ],
+  "h1": {
+    "fabricated_id_injected": "FABRICATED-NODE-ID-XYZ",
+    "warn_fired": true,
+    "validation_dropped_it": true,
+    "result": "PASS"
+  }
+}

@@ -2,7 +2,7 @@ import type { ThreadNode, RenderState } from '../types'
 import type { ThreadEdge } from '../types'
 import {
   planetOrbitR, angularVelocity, moonAngularVelocity, asteroidAngularVelocity,
-  ellipseAngularDelta, COMET_E, cometOrbitParams,
+  ellipseAngularDelta, COMET_E, cometOrbitParams, ringIndex,
 } from './orbital'
 import type { AnimState } from './draw'
 import { getPlanetPos, getCometPos } from './draw'
@@ -19,9 +19,40 @@ export function initAnimState(
   const asteroids = nodes.filter(n => renderStates[n.id] === 'asteroid')
   const comets    = nodes.filter(n => renderStates[n.id] === 'comet')
 
-  planets.forEach((p, i) => {
-    if (anim.angles[p.id] === undefined) anim.angles[p.id] = (i / planets.length) * Math.PI * 2
-  })
+  // Planets: distribute evenly PER RING (not across all planets), with a
+  // phase offset per ring so rings don't visually align. A planet added to
+  // an already-populated ring drops into that ring's widest angular gap, so
+  // existing nodes never snap.
+  const TAU = Math.PI * 2
+  const byRing: Record<number, ThreadNode[]> = {}
+  for (const p of planets) {
+    const ri = ringIndex(p.centrality)
+    byRing[ri] = [...(byRing[ri] ?? []), p]
+  }
+  for (const [riKey, ring] of Object.entries(byRing)) {
+    const ri = Number(riKey)
+    const placed = ring.filter(p => anim.angles[p.id] !== undefined)
+    const unplaced = ring.filter(p => anim.angles[p.id] === undefined)
+    if (placed.length === 0) {
+      unplaced.forEach((p, i) => {
+        anim.angles[p.id] = ri * 0.9 + (i / unplaced.length) * TAU
+      })
+    } else {
+      for (const p of unplaced) {
+        const angles = ring
+          .filter(q => anim.angles[q.id] !== undefined)
+          .map(q => ((anim.angles[q.id] % TAU) + TAU) % TAU)
+          .sort((a, b) => a - b)
+        let bestGap = -1, bestMid = ri * 0.9
+        for (let i = 0; i < angles.length; i++) {
+          const a = angles[i]
+          const b = i + 1 < angles.length ? angles[i + 1] : angles[0] + TAU
+          if (b - a > bestGap) { bestGap = b - a; bestMid = (a + b) / 2 }
+        }
+        anim.angles[p.id] = bestMid
+      }
+    }
+  }
 
   // Moon rings — group by parent
   const byParent: Record<string, string[]> = {}
@@ -54,6 +85,16 @@ export function initAnimState(
     anim.cometSlots[c.id] = i
     if (anim.cometAngles[c.id] === undefined) anim.cometAngles[c.id] = Math.PI * 0.25 + i * 0.8
   })
+
+  // Birth stamps drive the spawn animation: on first mount the whole system
+  // blooms in staggered; a node added mid-session pops in on its own.
+  let stagger = 0
+  for (const n of nodes) {
+    if (anim.births[n.id] === undefined) {
+      anim.births[n.id] = anim.time + stagger * 45
+      stagger++
+    }
+  }
 }
 
 export function tickAnimState(

@@ -21,8 +21,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#2dd4bf',
-      confidence: 3,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'p2',
@@ -35,8 +35,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#60a5fa',
-      confidence: 2,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'p3',
@@ -49,8 +49,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#a78bfa',
-      confidence: 1,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'p4',
@@ -63,8 +63,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#34d399',
-      confidence: 2,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'm1',
@@ -77,8 +77,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#67e8f9',
-      confidence: 2,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'm2',
@@ -91,8 +91,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#93c5fd',
-      confidence: 3,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 's1',
@@ -105,8 +105,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#fef3c7',
-      confidence: 1,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 's2',
@@ -119,8 +119,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#fef3c7',
-      confidence: 1,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'a1',
@@ -133,8 +133,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#fb7185',
-      confidence: 2,
       session_id: 1,
+      confidence: 2,
     },
     {
       id: 'c1',
@@ -147,8 +147,8 @@ export const SEED: ThreadProject = {
       last_reinforced_at: new Date().toISOString(),
       provenance: 'human',
       color: '#e0f7ff',
-      confidence: 2,
       session_id: 1,
+      confidence: 2,
     },
   ],
   edges: [

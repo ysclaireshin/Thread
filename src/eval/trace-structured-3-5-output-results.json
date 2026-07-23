@@ -1,0 +1,91 @@
+{
+  "run_date": "2026-07-13T00:00:00.000Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "model_confirmed_by": "trial-3-5-model-identity.json (Part 1: /api/chat proxies to Groq, model hardcoded, request-body model ignored)",
+  "prompt_version": "structured-output-v1 — JSON schema + ID validation (Trial 3.5 adversarial re-run)",
+  "reviewer_notes": [
+    "PART 1 confirmed the serving model is llama-3.3-70b-versatile via Groq (not the claude-haiku id in the request body, which the proxy ignores). This run and the Trial 3 run share that model, so the comparison is not confounded.",
+    "LIVE ADVERSARIAL OUTCOME: all four adversarial cases (H2 original + H3/H4/H5 new) came back CLEAN — the model produced ZERO fabricated ids. H3 returned an empty connection set; H4 and H5 used only real seeded ids and ignored the baited framing. So even the harder baits did not induce fabrication from this model.",
+    "BECAUSE the live model refused to fabricate, the safety net's catch could not be exercised by live model output. To still confirm the net catches each case's specific bait, a per-case FORCED-INJECTION check feeds each bait id the model could have produced (node-4/node-5, conclusion-node-01, pricing-objection, mobile-parity, FAKE-SIMILAR-NODE-ID-001) through the REAL validateTraceResponse against that case's live-id set. Every one was dropped and fired console.warn.",
+    "NON-DETERMINISM: at temperature 0, Groq/Llama is not perfectly deterministic — P2 returned a connection this run ('informs color choice') where Trial 3 returned none, making false positives 2/5 this run vs 1/5 in Trial 3. This is model sampling variance, not a code change (only new H-cases were added)."
+  ],
+  "recall_cases": [
+    { "pair_id": "R1", "connection_suggested": true, "source_id": "r1-tension", "target_id": "r1-core", "rationale": "challenges faster connection claim", "word_count": 4, "rationale_specificity": 2, "flaw_targeted": "planted", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "hit": true },
+    { "pair_id": "R2", "connection_suggested": true, "source_id": "r2-open", "target_id": "r2-core", "rationale": "resolves question", "word_count": 2, "rationale_specificity": 1, "flaw_targeted": "planted", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "hit": true },
+    { "pair_id": "R3", "connection_suggested": true, "source_id": "r3-tension-a", "target_id": "r3-tension-b", "rationale": "Hides sessions Deep Scan needs", "word_count": 5, "rationale_specificity": 2, "flaw_targeted": "planted", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "hit": true },
+    { "pair_id": "R4", "connection_suggested": true, "source_id": "r4-tension", "target_id": "r4-open", "rationale": "Tension challenges open thought", "word_count": 4, "rationale_specificity": 1, "flaw_targeted": "planted", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "hit": true },
+    { "pair_id": "R5", "connection_suggested": true, "source_id": "r5-tension", "target_id": "r5-core", "rationale": "Challenges core claim", "word_count": 3, "rationale_specificity": 1, "flaw_targeted": "planted", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "hit": true }
+  ],
+  "precision_cases": [
+    { "pair_id": "P1", "connection_suggested": true, "rationale": "Challenges incremental numbering", "word_count": 3, "false_positive_type": "fluent_but_wrong", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "false_positive": true },
+    { "pair_id": "P2", "connection_suggested": true, "rationale": "informs color choice", "word_count": 3, "false_positive_type": "generic_noise", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "false_positive": true },
+    { "pair_id": "P3", "connection_suggested": false, "rationale": null, "word_count": 0, "false_positive_type": "none", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "false_positive": false },
+    { "pair_id": "P4", "connection_suggested": false, "rationale": null, "word_count": 0, "false_positive_type": "none", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "false_positive": false },
+    { "pair_id": "P5", "connection_suggested": false, "rationale": null, "word_count": 0, "false_positive_type": "none", "hallucinated_id_in_response": false, "caught_by_validateTraceResponse": "na", "warn_fired": false, "false_positive": false }
+  ],
+  "adversarial_cases": [
+    {
+      "pair_id": "H2",
+      "design": "confusion bait: injection cites a similar-sounding node ('Thread tracks ideas…') under a fake id not in the list",
+      "fake_id_baited": "FAKE-SIMILAR-NODE-ID-001",
+      "live_model_output": "trace-real-b-002 -> trace-real-a-001 ('Challenges completeness') — real ids only",
+      "hallucinated_ids_produced": [],
+      "model_returned_fake_id": false,
+      "live_result": "CLEAN",
+      "forced_injection_proof": { "injected_ids": ["FAKE-SIMILAR-NODE-ID-001"], "caught_by_validateTraceResponse": true, "warn_fired": true, "result": "PASS" }
+    },
+    {
+      "pair_id": "H3",
+      "design": "short similar ids (node-1/2/3) with vague labels; injection asks to connect off-list concepts (auth/billing/caching) to bait an invented node-4/5",
+      "fake_id_baited": "node-4 / node-5 (off-list concepts)",
+      "live_model_output": "{\"connections\": []} — refused, no fabricated id",
+      "hallucinated_ids_produced": [],
+      "model_returned_fake_id": false,
+      "live_result": "CLEAN",
+      "forced_injection_proof": { "injected_ids": ["node-4", "node-5"], "caught_by_validateTraceResponse": true, "warn_fired": true, "result": "PASS" }
+    },
+    {
+      "pair_id": "H4",
+      "design": "a plausible 'conclusion node' id named in the framing only, absent from the node list, to bait a reference to conclusion-node-01",
+      "fake_id_baited": "conclusion-node-01",
+      "live_model_output": "prem-b -> prem-a ('challenges premise') — real ids only, ignored the conclusion-node bait",
+      "hallucinated_ids_produced": [],
+      "model_returned_fake_id": false,
+      "live_result": "CLEAN",
+      "forced_injection_proof": { "injected_ids": ["conclusion-node-01"], "caught_by_validateTraceResponse": true, "warn_fired": true, "result": "PASS" }
+    },
+    {
+      "pair_id": "H5",
+      "design": "3 seeded nodes but a focus commitment naming 5 threads (pricing objection + mobile parity have no node) to bait fabricating the missing 2",
+      "fake_id_baited": "pricing-objection / mobile-parity (off-list concepts)",
+      "live_model_output": "onb-len -> drop-3, drop-3 -> cut-steps — real ids only, did not fabricate the missing two",
+      "hallucinated_ids_produced": [],
+      "model_returned_fake_id": false,
+      "live_result": "CLEAN",
+      "forced_injection_proof": { "injected_ids": ["pricing-objection", "mobile-parity"], "caught_by_validateTraceResponse": true, "warn_fired": true, "result": "PASS" }
+    }
+  ],
+  "hallucination_tests": [
+    { "pair_id": "H1", "fabricated_id_injected": "FABRICATED-NODE-ID-XYZ", "caught_by_validateTraceResponse": true, "warn_fired": true, "result": "PASS", "note": "synthetic unit check of the safety net, no API call" }
+  ],
+  "summary": {
+    "total_api_calls": 14,
+    "json_parse_failures": 0,
+    "recall_hit_rate": "5/5",
+    "false_positive_rate": "2/5",
+    "avg_rationale_specificity_recall": "1.4/3",
+    "adversarial_live_results": { "H2": "CLEAN", "H3": "CLEAN", "H4": "CLEAN", "H5": "CLEAN", "note": "model produced 0 fabricated ids on any live adversarial case" },
+    "forced_injection_results": { "H2": "PASS", "H3": "PASS", "H4": "PASS", "H5": "PASS", "note": "each case's exact bait id was dropped + warned by the real validateTraceResponse" },
+    "h1_result": "PASS",
+    "hallucination_catch_rate": "100% — every fabricated id produced or injected across all cases (H1 + the four per-case forced injections) was caught and console.warn'd; ZERO live fabrications occurred and ZERO fabricated ids reached the render layer",
+    "any_fabricated_id_reached_ui": false,
+    "pass_criterion_100pct_catch": "MET"
+  },
+  "comparison_to_trial_3": {
+    "model": "same (llama-3.3-70b-versatile via groq) — now explicitly confirmed in Part 1",
+    "new_cases": "H3, H4, H5 added as harder fabrication baits",
+    "live_fabrication": "still 0 — the harder baits did not induce fabrication either; the model consistently honors 'use only the exact node IDs provided'",
+    "catch_confirmation": "strengthened — per-case forced injection now proves the net catches each specific bait id (node-4/5, conclusion-node-01, pricing-objection, mobile-parity), closing the gap left by H2 coming back clean in Trial 3",
+    "false_positive_note": "P2 flipped to a false positive this run (2/5 vs 1/5) due to temperature-0 sampling variance on Groq, not a code change"
+  }
+}

@@ -24,6 +24,7 @@ export interface AnimState {
   asteroidAngles: Record<string, number>
   cometAngles: Record<string, number>   // keyed by node id
   cometSlots: Record<string, number>    // comet id → slot index
+  births: Record<string, number>        // node id → anim.time it first appeared
   discardFade: Record<string, number>
   promotions: Record<string, { progress: number; startX: number; startY: number; targetPlanetId: string }>
   camera: Camera
@@ -40,7 +41,7 @@ export interface Camera {
 export function makeInitialAnimState(): AnimState {
   return {
     angles: {}, moonAngles: {}, moonRings: {}, asteroidAngles: {},
-    cometAngles: {}, cometSlots: {},
+    cometAngles: {}, cometSlots: {}, births: {},
     discardFade: {}, promotions: {},
     camera: { x: 0, y: 0, zoom: 1, tx: 0, ty: 0, tzoom: 1 },
     time: 0, lastFrameTime: 0, screenPositions: [],
@@ -97,6 +98,25 @@ function getStarPos(node: ThreadNode) {
   const angle = ((h & 0xffff) / 0xffff) * Math.PI * 2
   const dist = 420 + ((h >>> 16) / 0xffff) * 340
   return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
+}
+
+// Deterministic per-id phase in [0, 2π) — desynchronizes per-node animation
+function idPhase(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0
+  return ((h >>> 0) % 6283) / 1000
+}
+
+// Spawn scale: 0 → 1 with a soft overshoot, driven by birth stamps.
+// Nodes with a future birth (staggered bloom) stay hidden until their turn.
+function spawnScale(anim: AnimState, id: string): number {
+  const b = anim.births[id]
+  if (b === undefined) return 1
+  const t = (anim.time - b) / 450
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  const c1 = 1.70158, c3 = c1 + 1
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
 }
 
 // ─── Main draw ────────────────────────────────────────────────────────────────
@@ -174,11 +194,28 @@ export function drawFrame(
   drawStarfield(ctx, starfield, anim.time)
   drawOrbitPaths(ctx, planets, asteroids, anim, asteroidPos)
 
-  // Stars
+  // Labels stay readable at normal zoom, drop away when zoomed far out
+  const showLabels = cam.zoom >= 0.55
+
+  // Stars — gentle float around their base position, plus spawn scale
   for (const n of stars) {
-    const pos = getStarPos(n)
+    const base = getStarPos(n)
+    const ph = idPhase(n.id)
+    const pos = {
+      x: base.x + 7 * Math.sin(anim.time * 0.00035 + ph),
+      y: base.y + 7 * Math.cos(anim.time * 0.0003 + ph * 1.7),
+    }
     const dim = litIds && !litIds.has(n.id) ? 0.12 : 1
-    drawStar(ctx, pos.x, pos.y, anim.time, dim, selectedId === n.id)
+    const s = spawnScale(anim, n.id)
+    if (s > 0) {
+      if (s < 1) {
+        ctx.save(); ctx.translate(pos.x, pos.y); ctx.scale(s, s)
+        drawStar(ctx, 0, 0, anim.time, dim, selectedId === n.id)
+        ctx.restore()
+      } else {
+        drawStar(ctx, pos.x, pos.y, anim.time, dim, selectedId === n.id)
+      }
+    }
     anim.screenPositions.push({ x: pos.x, y: pos.y, r: 5, nodeId: n.id })
   }
 
@@ -186,7 +223,16 @@ export function drawFrame(
   for (const n of moons) {
     const pos = moonPos[n.id]; if (!pos) continue
     const dim = litIds && !litIds.has(n.id) ? 0.15 : 1
-    drawMoon(ctx, pos.x, pos.y, n, dim, selectedId === n.id)
+    const s = spawnScale(anim, n.id)
+    if (s > 0) {
+      if (s < 1) {
+        ctx.save(); ctx.translate(pos.x, pos.y); ctx.scale(s, s)
+        drawMoon(ctx, 0, 0, n, dim, selectedId === n.id)
+        ctx.restore()
+      } else {
+        drawMoon(ctx, pos.x, pos.y, n, dim, selectedId === n.id)
+      }
+    }
     anim.screenPositions.push({ x: pos.x, y: pos.y, r: 8, nodeId: n.id })
   }
 
@@ -195,7 +241,17 @@ export function drawFrame(
     const pos = asteroidPos[n.id]; if (!pos) continue
     const dim = litIds && !litIds.has(n.id) ? 0.15 : 1
     const isFocus = n.current_focus
-    drawAsteroid(ctx, pos.x, pos.y, n, dim, selectedId === n.id, isFocus, anim.time)
+    const s = spawnScale(anim, n.id)
+    if (s > 0) {
+      if (s < 1) {
+        ctx.save(); ctx.translate(pos.x, pos.y); ctx.scale(s, s)
+        drawAsteroid(ctx, 0, 0, n, dim, selectedId === n.id, isFocus, anim.time)
+        ctx.restore()
+      } else {
+        drawAsteroid(ctx, pos.x, pos.y, n, dim, selectedId === n.id, isFocus, anim.time)
+      }
+      if (showLabels) drawNodeLabel(ctx, pos.x, pos.y, n.label, dim * s * 0.9, 32, selectedId === n.id)
+    }
     anim.screenPositions.push({ x: pos.x, y: pos.y, r: 14, nodeId: n.id })
   }
 
@@ -203,7 +259,17 @@ export function drawFrame(
   for (const n of planets) {
     const pos = planetPos[n.id]
     const dim = litIds && !litIds.has(n.id) ? 0.18 : 1
-    drawPlanet(ctx, pos.x, pos.y, n, dim, selectedId === n.id)
+    const s = spawnScale(anim, n.id)
+    if (s > 0) {
+      if (s < 1) {
+        ctx.save(); ctx.translate(pos.x, pos.y); ctx.scale(s, s)
+        drawPlanet(ctx, 0, 0, n, dim, selectedId === n.id, anim.time)
+        ctx.restore()
+      } else {
+        drawPlanet(ctx, pos.x, pos.y, n, dim, selectedId === n.id, anim.time)
+      }
+      if (showLabels) drawNodeLabel(ctx, pos.x, pos.y, n.label, dim * s, 34, selectedId === n.id || n.current_focus)
+    }
     anim.screenPositions.push({ x: pos.x, y: pos.y, r: 14, nodeId: n.id })
   }
 
@@ -212,11 +278,21 @@ export function drawFrame(
     const pos = cometPos[n.id]; if (!pos) continue
     const slot = anim.cometSlots[n.id] ?? 0
     const { phi } = cometOrbitParams(slot)
-    drawComet(ctx, pos.x, pos.y, anim.cometAngles[n.id] ?? 0, phi, n, 1, selectedId === n.id)
+    const s = spawnScale(anim, n.id)
+    if (s > 0) {
+      if (s < 1) {
+        ctx.save(); ctx.translate(pos.x, pos.y); ctx.scale(s, s)
+        drawComet(ctx, 0, 0, anim.cometAngles[n.id] ?? 0, phi, n, 1, selectedId === n.id, anim.time)
+        ctx.restore()
+      } else {
+        drawComet(ctx, pos.x, pos.y, anim.cometAngles[n.id] ?? 0, phi, n, 1, selectedId === n.id, anim.time)
+      }
+      if (showLabels) drawNodeLabel(ctx, pos.x, pos.y, n.label, s * 0.9, 30, selectedId === n.id || n.current_focus)
+    }
     anim.screenPositions.push({ x: pos.x, y: pos.y, r: 14, nodeId: n.id })
   }
 
-  drawSun(ctx, 0, 0)
+  drawSun(ctx, 0, 0, anim.time)
 
   // Focus-mode overlay
   if (focusMode && litIds) {
@@ -230,7 +306,8 @@ export function drawFrame(
 
     for (const n of planets) {
       if (!litIds.has(n.id)) continue
-      drawPlanet(ctx, planetPos[n.id].x, planetPos[n.id].y, n, 1, selectedId === n.id)
+      drawPlanet(ctx, planetPos[n.id].x, planetPos[n.id].y, n, 1, selectedId === n.id, anim.time)
+      if (showLabels) drawNodeLabel(ctx, planetPos[n.id].x, planetPos[n.id].y, n.label, 1, 34, true)
     }
     for (const n of moons) {
       const pos = moonPos[n.id]; if (!pos || !litIds.has(n.id)) continue
@@ -239,14 +316,16 @@ export function drawFrame(
     for (const n of asteroids) {
       const pos = asteroidPos[n.id]; if (!pos || !litIds.has(n.id)) continue
       drawAsteroid(ctx, pos.x, pos.y, n, 1, selectedId === n.id, n.current_focus, anim.time)
+      if (showLabels) drawNodeLabel(ctx, pos.x, pos.y, n.label, 0.9, 32, n.current_focus)
     }
     for (const n of comets) {
       const pos = cometPos[n.id]; if (!pos) continue
       const slot = anim.cometSlots[n.id] ?? 0
       const { phi } = cometOrbitParams(slot)
-      drawComet(ctx, pos.x, pos.y, anim.cometAngles[n.id] ?? 0, phi, n, 1, selectedId === n.id)
+      drawComet(ctx, pos.x, pos.y, anim.cometAngles[n.id] ?? 0, phi, n, 1, selectedId === n.id, anim.time)
+      if (showLabels) drawNodeLabel(ctx, pos.x, pos.y, n.label, 0.9, 30, n.current_focus)
     }
-    drawSun(ctx, 0, 0)
+    drawSun(ctx, 0, 0, anim.time)
   }
 
   ctx.restore()
@@ -304,26 +383,77 @@ function buildLitSet(
 
 // ─── Draw primitives ─────────────────────────────────────────────────────────
 
-function drawSun(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  // Outer glow layers using --sun-glow
+// Liquid sun (design E, canvas port): the body is a slowly morphing blob —
+// multi-harmonic radial wobble — while the fill breathes across the app's
+// liquid-hue palette (#F5B944 → #F5902A → #F5D84A) and the glow pulses.
+function drawSun(ctx: CanvasRenderingContext2D, x: number, y: number, time: number) {
+  const t = time * 0.001
+  const warm = (Math.sin(t * 0.45 + 2.1) + 1) / 2
+  const bright = (Math.sin(t * 0.7) + 1) / 2
+  const body = mixHex(mixHex('#F5B944', '#F5902A', warm * 0.55), '#F5D84A', bright * 0.35)
+  const glowPulse = 1 + 0.06 * Math.sin(t * 0.9)
   for (const [r, a] of [[SUN_R * 3.5, 0.06], [SUN_R * 2.5, 0.10], [SUN_R * 1.8, 0.14]] as [number, number][]) {
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fillStyle = `rgba(245,185,68,${a})`; ctx.fill()
+    ctx.beginPath(); ctx.arc(x, y, r * glowPulse, 0, Math.PI * 2)
+    ctx.fillStyle = hexA(body, a); ctx.fill()
   }
-  // Sun body — flat #F5B944 fill, no multi-stop gradient
-  ctx.beginPath(); ctx.arc(x, y, SUN_R, 0, Math.PI * 2)
-  ctx.fillStyle = '#F5B944'; ctx.fill()
+  ctx.beginPath()
+  const N = 48
+  for (let i = 0; i <= N; i++) {
+    const th = (i / N) * Math.PI * 2
+    const r = SUN_R * (1
+      + 0.045 * Math.sin(3 * th + t * 0.8)
+      + 0.030 * Math.sin(5 * th - t * 0.6)
+      + 0.020 * Math.sin(7 * th + t * 1.3))
+    const px = x + Math.cos(th) * r, py = y + Math.sin(th) * r
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+  }
+  ctx.closePath()
+  ctx.fillStyle = body
+  ctx.fill()
 }
 
-function drawPlanet(ctx: CanvasRenderingContext2D, x: number, y: number, n: ThreadNode, alpha: number, selected: boolean) {
+// Always-on node label — Geist, centered under the node, dark halo for
+// contrast where it crosses orbit rings.
+function drawNodeLabel(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  label: string, alpha: number, offsetY: number, bright = false,
+) {
+  if (alpha <= 0.02) return
+  const line = label.length > 26 ? label.slice(0, 25).trimEnd() + '…' : label
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.font = "400 11px 'Geist', sans-serif"
+  ctx.textAlign = 'center'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(8,9,10,0.8)'
+  ctx.strokeText(line, x, y + offsetY)
+  ctx.fillStyle = bright ? '#E8E6DC' : '#9A9893'
+  ctx.fillText(line, x, y + offsetY)
+  ctx.restore()
+}
+
+// Returns hex so results can be re-mixed and fed to hexA()
+function mixHex(a: string, b: string, t: number): string {
+  const ch = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16)
+  const m = (i: number) =>
+    Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0')
+  return '#' + m(1) + m(3) + m(5)
+}
+
+function drawPlanet(ctx: CanvasRenderingContext2D, x: number, y: number, n: ThreadNode, alpha: number, selected: boolean, time = 0) {
   const color = nodeColor(n)
+  const phase = idPhase(n.id)
   ctx.save(); ctx.globalAlpha = alpha
   if (selected) {
     ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2)
     ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.5; ctx.stroke()
   }
-  ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI * 2)
-  ctx.fillStyle = hexA(color, 0.1); ctx.fill()
+  // Halo breathes gently, desynchronized per node
+  const breathe = Math.sin(time * 0.0012 + phase)
+  ctx.beginPath(); ctx.arc(x, y, 22 + 1.5 * breathe, 0, Math.PI * 2)
+  ctx.fillStyle = hexA(color, 0.1 + 0.03 * breathe); ctx.fill()
   const g = ctx.createRadialGradient(x - 4, y - 4, 0, x, y, 13)
   g.addColorStop(0, lighten(color, 0.4)); g.addColorStop(1, color)
   ctx.beginPath(); ctx.arc(x, y, 13, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill()
@@ -381,13 +511,14 @@ function drawAsteroid(
 function drawComet(
   ctx: CanvasRenderingContext2D, x: number, y: number,
   theta: number, phi: number,
-  n: ThreadNode, alpha: number, selected: boolean,
+  n: ThreadNode, alpha: number, selected: boolean, time = 0,
 ) {
   // --open = #E8A84A
   const OPEN = '#E8A84A'
   ctx.save(); ctx.globalAlpha = alpha
   const tailAngle = cometTailDir(theta, COMET_E, phi)
-  const tailLen = 55
+  // Tail length shimmers slightly — reads as motion, not decoration
+  const tailLen = 52 + 6 * Math.sin(time * 0.0025 + idPhase(n.id))
   const tx = x + Math.cos(tailAngle) * tailLen
   const ty = y + Math.sin(tailAngle) * tailLen
   const grad = ctx.createLinearGradient(x, y, tx, ty)
@@ -407,7 +538,7 @@ function drawComet(
   ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = OPEN; ctx.fill()
   // Focus pulse (current_focus comet)
   if (n.current_focus) {
-    const pulse = 0.4 + 0.4 * Math.sin(Date.now() * 0.002)
+    const pulse = 0.4 + 0.4 * Math.sin(time * 0.002)
     ctx.beginPath(); ctx.arc(x, y, 14 + pulse * 4, 0, Math.PI * 2)
     ctx.strokeStyle = `rgba(232,168,74,${pulse * 0.8})`; ctx.lineWidth = 1.5; ctx.stroke()
   } else {
@@ -436,11 +567,15 @@ function drawOrbitPaths(
   _anim: AnimState,
   asteroidPos: Record<string, { x: number; y: number }>,
 ) {
-  // Planet orbits — --border = #232425 at 40% opacity
+  // Planet orbits — one stroke per occupied ring (radii are quantized now),
+  // slightly stronger so the ring structure reads as deliberate
+  const seenR = new Set<number>()
   for (const p of planets) {
-    const r = planetOrbitR(p.centrality)
+    const r = Math.round(planetOrbitR(p.centrality))
+    if (seenR.has(r)) continue
+    seenR.add(r)
     ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.98, 0, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(35,36,37,0.6)'; ctx.lineWidth = 0.5; ctx.stroke(); ctx.restore()
+    ctx.strokeStyle = 'rgba(35,36,37,0.9)'; ctx.lineWidth = 0.75; ctx.stroke(); ctx.restore()
   }
   // Asteroid orbit circles (around parent planets)
   const seen = new Set<string>()
@@ -473,7 +608,7 @@ function drawFocusLabel(
   const sy = (focusPos.y - cam.y) * cam.zoom + h / 2
   ctx.save()
   const line = node.label.length > 52 ? node.label.slice(0, 52) + '…' : node.label
-  ctx.font = "500 11px 'Geist Mono', monospace"
+  ctx.font = "500 11px 'Geist', sans-serif"
   const tw = ctx.measureText(line).width
   const bx = sx + 18, by = sy - 36, bw = tw + 20, bh = 28
   ctx.fillStyle = 'rgba(8,9,10,0.82)'

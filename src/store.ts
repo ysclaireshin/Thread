@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import type { ThreadNode, ThreadEdge, ThreadProject, TextAnchor, Provenance } from './types'
 import { SEED } from './data/seed'
-import { saveProject } from './lib/supabaseSync'
+import { saveProject, loadProjects, flushPendingSaves } from './lib/supabaseSync'
 
-console.log("NEW STORE VERSION LOADED")
 
 const V3_KEY = 'thread_v3'
 
@@ -391,18 +390,10 @@ export const useStore = create<Store>((set, get) => {
         createdWithFocus: newNode.createdWithFocus,
       })
       const updatedNodes = [...s.nodes, newNode]
-
-saveProject({
-  id: s.projectId,
-  name: s.projectName,
-  thesis: s.thesis,
-  nodes: updatedNodes,
-  edges: s.edges,
-  textAnchors: s.textAnchors,
-  currentSession: s.currentSession,
-})
-
-return { nodes: updatedNodes }
+      // No cloud write here — the store-wide subscribe below persists every
+      // change (debounced) with the COMPLETE project. Saving a partial project
+      // here as well caused double writes and dropped fields.
+      return { nodes: updatedNodes }
     }),
 
     updateNode: (id, patch) =>
@@ -496,20 +487,81 @@ function extractProject(s: Store): ThreadProject {
   }
 }
 
-console.log("STORE FILE LOADED")
 
 useStore.subscribe((s) => {
-  console.log("SUBSCRIBE FIRED", s.nodes.length)
-
+  // localStorage stays the synchronous source of truth (instant, offline-safe).
   saveAll(s)
-
-  saveProject({
-    id: s.projectId,
-    name: s.projectName,
-    thesis: s.thesis,
-    nodes: s.nodes,
-    edges: s.edges,
-    textAnchors: s.textAnchors,
-    currentSession: s.currentSession,
-  })
+  // Cloud write is debounced inside saveProject — safe to call on every change.
+  // extractProject sends the COMPLETE project (edges, textAnchors, draftText,
+  // dismissedPairs, greeting/focus/cursor state), not the partial subset the
+  // previous version sent.
+  saveProject(extractProject(s))
 })
+
+// Don't lose the last debounce window when the tab is backgrounded or closed.
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingSaves()
+  })
+  window.addEventListener('pagehide', () => flushPendingSaves())
+}
+
+// ─── Cloud hydration ──────────────────────────────────────────────────────────
+// Called once on app mount. Pulls this (anonymous) user's projects and merges
+// them with local state, newest-wins per project id. No-op when Supabase isn't
+// configured, so local-only behaviour is unchanged.
+export async function hydrateFromCloud(): Promise<void> {
+  const cloud = await loadProjects()
+  if (!cloud) return // sync unavailable — stay local
+
+  const state = useStore.getState()
+
+  if (cloud.length === 0) {
+    // Cloud is empty: seed it from this device so the data exists remotely.
+    saveProject(extractProject(state))
+    return
+  }
+
+  // Merge by id; the more recently saved copy wins.
+  const byId = new Map<string, ThreadProject>()
+  for (const p of state._allProjects) byId.set(p.id, p)
+  for (const c of cloud) {
+    const migrated = migrateProject(c as unknown as Record<string, unknown>)
+    const localCopy = byId.get(migrated.id)
+    if (!localCopy) { byId.set(migrated.id, migrated); continue }
+    const localT = new Date(localCopy.savedAt ?? 0).getTime()
+    const cloudT = new Date(migrated.savedAt ?? 0).getTime()
+    byId.set(migrated.id, cloudT >= localT ? migrated : localCopy)
+  }
+  const merged = [...byId.values()]
+
+  // If this device is a fresh/blank install, open the user's most recent cloud
+  // project rather than stranding them on an empty local one.
+  const activeLocal = merged.find(p => p.id === state.projectId)
+  const localIsUntouched =
+    !activeLocal || (activeLocal.nodes.length === 0 && !activeLocal.draftText.trim())
+  const newestCloud = cloud
+    .map(c => migrateProject(c as unknown as Record<string, unknown>))
+    .sort((a, b) => new Date(b.savedAt ?? 0).getTime() - new Date(a.savedAt ?? 0).getTime())[0]
+  const active = localIsUntouched && newestCloud ? newestCloud : (activeLocal ?? merged[0])
+
+  useStore.setState({
+    _allProjects: merged,
+    projectId: active.id,
+    projectName: active.name,
+    thesis: active.thesis,
+    nodes: active.nodes,
+    edges: active.edges,
+    textAnchors: active.textAnchors,
+    draftText: active.draftText,
+    greetingStyle: active.greetingStyle,
+    currentSession: active.currentSession,
+    focusCommitment: active.focusCommitment,
+    focusCommitmentSession: active.focusCommitmentSession,
+    focusDraftSnapshot: active.focusDraftSnapshot,
+    lastCursorLine: active.lastCursorLine ?? null,
+    lastCursorOffset: active.lastCursorOffset ?? null,
+    dismissedPairs: active.dismissedPairs ?? [],
+    selectedId: null,
+  })
+}

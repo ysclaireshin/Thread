@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import { ORGANIZER_META } from '../types'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
+import { aiFetch } from '../lib/aiFetch'
 
 // ─── Flow · Part 3/4 — the re-entry card ──────────────────────────────────────
 // Sits at the top of the outline panel, above the "// current session" divider.
@@ -78,18 +79,16 @@ export function ReentryCard() {
     try {
       // Same-origin proxy (see vite.config.ts) holds the key server-side. A
       // missing key comes back as 503 and lands in the catch below.
-      const res = await fetch('/api/replay', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          max_tokens: 200,
-          // Static system prompt (identical every call) marked for prompt
-          // caching; only the user message varies. Same inertness caveat as
-          // Probe — see the summary note (prompt is below the cache minimum).
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: userPrompt }],
-        }),
+      // aiFetch attaches the Supabase session token; the production endpoint
+      // requires it and meters the call against a server-side daily budget.
+      const res = await aiFetch('/api/replay', {
+        model: AI_MODEL,
+        max_tokens: 200,
+        // Static system prompt (identical every call) marked for prompt
+        // caching; only the user message varies. Same inertness caveat as
+        // Probe — see the summary note (prompt is below the cache minimum).
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: userPrompt }],
       })
       if (!res.ok) throw new Error(`http-${res.status}`)
       const data = await res.json()

@@ -4,7 +4,7 @@ import { SolarSystem } from './components/SolarSystem'
 import { SidePanel } from './components/SidePanel'
 import { LinearView } from './components/LinearView'
 import { MapView } from './components/MapView'
-import { useStore } from './store'
+import { useStore, hydrateFromCloud } from './store'
 
 export default function App() {
   const viewMode = useStore(s => s.viewMode)
@@ -12,6 +12,14 @@ export default function App() {
   const activateFlow = useStore(s => s.activateFlow)
   const fadeFlowGlow = useStore(s => s.fadeFlowGlow)
   const hideFlowIndicator = useStore(s => s.hideFlowIndicator)
+
+  // ─── Cloud hydration ────────────────────────────────────────────────────
+  // Once on mount: sign in anonymously and pull this user's projects, merging
+  // newest-wins with local state. No-op when Supabase isn't configured, so the
+  // app still runs fully local-only.
+  useEffect(() => {
+    void hydrateFromCloud()
+  }, [])
 
   // ─── Flow activation ────────────────────────────────────────────────────
   // Runs automatically whenever a project loads (initial mount + project switch).

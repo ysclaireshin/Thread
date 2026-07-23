@@ -1,0 +1,29 @@
+{
+  "confirmed_at": "2026-07-13T00:00:00.000Z",
+  "method": "read vite.config.ts groqChatProxy handler + one live POST to /api/chat + one independent model-identity probe on the same endpoint",
+  "code_findings": {
+    "middleware": "groqChatProxy() in vite.config.ts, mounted at /api/chat via configureServer + configurePreviewServer",
+    "proxies_to": "https://api.groq.com/openai/v1/chat/completions",
+    "headers_set": {
+      "content-type": "application/json",
+      "authorization": "Bearer ${GROQ_API_KEY}  (server-side, from loadEnv; never shipped to browser)"
+    },
+    "rewrites_model_field": true,
+    "rewrite_detail": "The handler ignores the client request body's `model` entirely and hardcodes `const model = 'llama-3.3-70b-versatile'` (line ~93), sending that as the model to Groq (line ~146). The client's model string never reaches the upstream.",
+    "response_reshape": "Groq's OpenAI-shaped choices[0].message.content is repackaged into Anthropic's { content: [{ type: 'text', text }] } so probe.ts / trace.ts / the eval harness read data.content[0].text unchanged. The reshaped response carries NO model field.",
+    "note_separate_anthropic_proxy": "A distinct anthropic-replay-proxy is mounted at /api/replay (→ https://api.anthropic.com/v1/messages, x-api-key from ANTHROPIC_API_KEY). Only /api/replay talks to Anthropic; /api/chat does not."
+  },
+  "live_request": {
+    "payload": { "model": "claude-haiku-4-5", "messages": [{ "role": "user", "content": "reply with the single word: confirm" }], "max_tokens": 10 },
+    "http_status": 200,
+    "forwarded_to_url": "https://api.groq.com/openai/v1/chat/completions",
+    "raw_content_0_text": "confirm",
+    "independent_identity_probe": "I am Llama, a model developed by Meta."
+  },
+  "proxy_target_url": "https://api.groq.com/openai/v1/chat/completions",
+  "model_in_request": "claude-haiku-4-5",
+  "model_in_response": null,
+  "actual_model_serving": "llama-3.3-70b-versatile (via Groq)",
+  "intentional": true,
+  "decision": "KEEP Groq (llama-3.3-70b-versatile) on /api/chat as a deliberate, permanent cost decision — it is the free tier serving Probe and Trace, chosen on purpose (vite.config.ts comment: 'best free option for the structured-JSON reasoning Trace requires; the model the client sends in the request body is ignored on purpose'). It is NOT a leftover from early dev: a separate Anthropic proxy exists at /api/replay for the paid path. Consequence for evals: the `model` constants in lib/probe.ts and lib/trace.ts (claude-haiku-4-5-20251001) are cosmetic and ignored by the proxy; every results file must record the actual serving model, 'llama-3.3-70b-versatile via groq', not the request-body id. Follow-up flagged (not done here): align the client-side model constants or add a code comment at each call site so the misleading Haiku id does not confuse future readers."
+}

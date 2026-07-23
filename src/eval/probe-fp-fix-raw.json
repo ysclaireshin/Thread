@@ -1,0 +1,92 @@
+{
+  "run_date": "2026-07-13T15:58:02.181Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "prompt_version": "baseline-v1 + none-escape-valve (read live from lib/probe.ts)",
+  "prompt_has_none_clause": true,
+  "total_api_calls": 10,
+  "recall": [
+    {
+      "paragraph_id": 1,
+      "ok": true,
+      "answer": "Is re-reading the only cause of lost productive time?",
+      "returned_none": false,
+      "word_count": 9,
+      "note": ""
+    },
+    {
+      "paragraph_id": 2,
+      "ok": true,
+      "answer": "Is automating workarounds more effective than addressing their causes?",
+      "returned_none": false,
+      "word_count": 9,
+      "note": ""
+    },
+    {
+      "paragraph_id": 3,
+      "ok": true,
+      "answer": "Is tagging the only interruption?",
+      "returned_none": false,
+      "word_count": 5,
+      "note": ""
+    },
+    {
+      "paragraph_id": 4,
+      "ok": true,
+      "answer": "Is every Shift-click a meaningful connection?",
+      "returned_none": false,
+      "word_count": 6,
+      "note": ""
+    },
+    {
+      "paragraph_id": 5,
+      "ok": true,
+      "answer": "Does the user recall their last session's commitment sentence accurately?",
+      "returned_none": false,
+      "word_count": 10,
+      "note": ""
+    }
+  ],
+  "precision": [
+    {
+      "paragraph_id": 6,
+      "ok": true,
+      "answer": "NONE",
+      "returned_none": true,
+      "word_count": 0,
+      "note": ""
+    },
+    {
+      "paragraph_id": 7,
+      "ok": true,
+      "answer": "NONE",
+      "returned_none": true,
+      "word_count": 0,
+      "note": ""
+    },
+    {
+      "paragraph_id": 8,
+      "ok": true,
+      "answer": "NONE",
+      "returned_none": true,
+      "word_count": 0,
+      "note": ""
+    },
+    {
+      "paragraph_id": 9,
+      "ok": true,
+      "answer": "NONE",
+      "returned_none": true,
+      "word_count": 0,
+      "note": ""
+    },
+    {
+      "paragraph_id": 10,
+      "ok": true,
+      "answer": "NONE",
+      "returned_none": true,
+      "word_count": 0,
+      "note": ""
+    }
+  ]
+}

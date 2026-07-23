@@ -6,7 +6,7 @@ import { TextShimmerWave } from './core/text-shimmer-wave'
 // dismiss. Shared by both trigger surfaces (text selection + node selection) so
 // the styling stays identical. Styling follows Probe Part 3 verbatim.
 
-export type ProbeStatus = 'loading' | 'done' | 'error'
+export type ProbeStatus = 'loading' | 'done' | 'error' | 'none'
 
 // tension coral (#E06B5A) at 40% opacity for borders.
 const TENSION_40 = 'rgba(224, 107, 90, 0.4)'
@@ -31,6 +31,28 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
         >
           Probing...
         </TextShimmerWave>
+      </div>
+    )
+  }
+
+  if (status === 'none') {
+    // The model judged the selection sound/trivial and returned NONE. Show a
+    // brief neutral line — deliberately NOT the coral result card — so an empty
+    // finding reads as a correct outcome, not a failure or a false positive.
+    return (
+      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+          No significant assumption found
+        </span>
+        <button
+          onClick={onDismiss}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-disabled)', padding: 0,
+          }}
+        >
+          ✕
+        </button>
       </div>
     )
   }

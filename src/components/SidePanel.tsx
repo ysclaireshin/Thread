@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Target, CheckCircle, ShieldCheck, Link2, Crosshair } from 'lucide-react'
+import { X, Target, CheckCircle, Link2, Crosshair } from 'lucide-react'
 import { useStore } from '../store'
 import { ORGANIZER_META, type ThreadNode } from '../types'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
-import { runProbe } from '../lib/probe'
+import { runProbe, isNoneResponse } from '../lib/probe'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 interface SidePanelProps {
@@ -43,7 +43,8 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
       })
       // Guard against a selection change during the request.
       if (useStore.getState().selectedId !== target.id) return
-      setProbe({ status: 'done', question, errorMsg: null })
+      // NONE → neutral "no assumption found" state, not a manufactured question.
+      setProbe({ status: isNoneResponse(question) ? 'none' : 'done', question, errorMsg: null })
     } catch {
       if (useStore.getState().selectedId !== target.id) return
       setProbe({ status: 'error', question: '', errorMsg: "Couldn't reach the model. Try again." })
@@ -93,7 +94,6 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
   if (!node) return null
 
   const meta = ORGANIZER_META[node.organizer]
-  const confidence = node.confidence ?? 2
 
   const connections = edges
     .filter(e => e.from_id === selectedId || e.to_id === selectedId)
@@ -120,10 +120,6 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
       updateNode(node!.id, { description: notesDraft, last_reinforced_at: new Date().toISOString() })
       setNotesDraft(null)
     }
-  }
-
-  function handleConfirm() {
-    updateNode(node!.id, { confidence: 3, last_reinforced_at: new Date().toISOString() })
   }
 
   function handleResolve() {
@@ -237,62 +233,6 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
             rows={5}
             placeholder="Add notes…"
           />
-        </div>
-
-        {/* ── Confidence ────────────────────────────────────────── */}
-        <div style={sectionDivider}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--sp-2)' }}>
-            <span style={sectionLabel}>confidence</span>
-            {confidence < 3 ? (
-              <button
-                onClick={handleConfirm}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  background: 'none',
-                  border: '1px solid var(--core-mid)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '2px 8px',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 'var(--text-11)',
-                  color: 'var(--core)',
-                }}
-              >
-                <ShieldCheck size={10} />
-                Confirm
-              </button>
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--core)' }}>
-                <ShieldCheck size={10} />
-                Confirmed
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-            {([1, 2, 3] as const).map(i => (
-              <button
-                key={i}
-                onClick={() => updateNode(node.id, { confidence: i, last_reinforced_at: new Date().toISOString() })}
-                title={i === 1 ? 'Rough' : i === 2 ? 'Fine' : 'Confirmed'}
-                style={{
-                  background: confidence === i ? 'var(--surface-3)' : 'none',
-                  border: `1px solid ${confidence === i ? 'var(--border)' : 'var(--border-subtle)'}`,
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '3px 10px',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 'var(--text-12)',
-                  color: confidence === i ? 'var(--text-secondary)' : 'var(--text-disabled)',
-                  transition: 'all var(--transition-fast)',
-                }}
-              >
-                {i}
-              </button>
-            ))}
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-tertiary)' }}>
-              {confidence === 1 ? 'rough' : confidence === 2 ? 'fine' : 'confirmed'}
-            </span>
-          </div>
         </div>
 
         {/* ── Probe ─────────────────────────────────────────────── */}

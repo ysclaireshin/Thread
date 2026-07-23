@@ -8,7 +8,7 @@ import { SidePanel } from './SidePanel'
 import { SavePlaceModal } from './SavePlaceModal'
 import { ReentryCard } from './ReentryCard'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
-import { runProbe } from '../lib/probe'
+import { runProbe, isNoneResponse } from '../lib/probe'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 // A selection is Probe-eligible only when it is a meaningful run: at least 20
@@ -797,7 +797,8 @@ export function LinearView() {
     setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'loading', question: '', errorMsg: null })
     try {
       const question = await runProbe({ context: 'linear_editor_selection', selectedText: sel.text })
-      setProbe(p => (p ? { ...p, status: 'done', question } : p))
+      // NONE → neutral "no assumption found" state, not a manufactured question.
+      setProbe(p => (p ? { ...p, status: isNoneResponse(question) ? 'none' : 'done', question } : p))
     } catch {
       setProbe(p => (p ? { ...p, status: 'error', errorMsg: "Couldn't reach the model. Try again." } : p))
     }
