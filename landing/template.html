@@ -316,6 +316,30 @@ h1 {
 .content.in .cta-scroll { animation: rise .38s ease-out forwards; animation-delay:1.5s; }
 .cta-scroll:hover { color:#5FD4AC; }
 
+/* ── Product-led CTA hierarchy: "Try it" primary, everything else quieter ── */
+.hero-cta { margin-top:34px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.hero-cta .cta-scroll { margin-top:0; }
+/* The primary action is bigger and heavier than the standard .go button.
+   Two-class selector (button.cta-primary.go) outranks the later button.go. */
+button.cta-primary.go {
+  height:52px; padding:0 26px; font-size:16px; font-weight:600;
+  border-radius:var(--radius-md);
+}
+button.cta-primary.go:hover { transform:translateY(-1px); }
+
+/* Secondary email signup — visually subordinate to "Try it". */
+.secondary-signup { margin-top:26px; }
+.or-updates {
+  display:block; margin-bottom:10px;
+  font-family:var(--font-sans); font-size:13px; color:var(--text-secondary);
+}
+/* Quieter button: outline, not filled, so it can't compete with the primary. */
+button.go-secondary.go {
+  background:transparent; color:var(--text-primary);
+  border:1px solid var(--border);
+}
+button.go-secondary.go:hover { background:var(--surface-1); border-color:#3A3B3C; transform:none; }
+
 /* Replaced the old .price block. The launch price now appears only AFTER
    email capture (.price-ask), so it can't suppress the conversion it's
    supposed to qualify. */
@@ -584,19 +608,12 @@ mark { color:inherit; border-radius:2px; padding:0 1px; }
   visibility:hidden;
 }
 .sticky-cta.show { transform:none; pointer-events:auto; visibility:visible; }
+.sticky-cta .sc-copy { display:flex; flex-direction:column; }
 .sticky-cta .sc-head { font-family:var(--font-sans); font-weight:600; font-size:15px; color:var(--text-primary); }
 .sticky-cta .sc-sub { font-family:var(--font-sans); font-size:12.5px; color:var(--text-secondary); }
-.sticky-cta .price-note { margin:0; font-size:12px; white-space:nowrap; }
-.sticky-cta form.cta { max-width:none; }
-.sticky-cta input[type=email] { width:220px; height:40px; }
 .sticky-cta button.go { height:40px; }
-/* The bar is a single 40px row, so its success state stays horizontal rather
-   than stacking like the closing section's. */
-.sticky-cta .form-done { min-height:40px; flex-direction:row; align-items:center; gap:10px; }
-.sticky-cta .pa-q { font-size:12px; }
-.sticky-cta .pa-btn { height:26px; padding:0 10px; font-size:12px; }
-/* Narrow bar has no room for the question; the closing section still asks it. */
-@media (max-width:860px) { .sticky-cta .sc-sub { display:none; } .sticky-cta .price-ask { display:none; } }
+/* Narrow bar drops the sub, then the head — the "Try it" button always stays. */
+@media (max-width:860px) { .sticky-cta .sc-sub { display:none; } }
 @media (max-width:640px) { .sticky-cta .sc-head { display:none; } .sticky-cta { gap:10px; } }
 
 /* ══ SECTION 02 - Map view glimpse ═════════════════════════════════════ */
@@ -801,7 +818,7 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
      every comparison page. Scrolls to the closing signup and focuses the email
      field. It fires CTA_CLICK because it IS a "Get early access" action — the
      tracking JS binds every .go button, and this one carries that class. -->
-<button class="header-cta go" id="header-cta" type="button">Get early access</button>
+<button class="header-cta go" id="header-cta" data-tryit type="button">Try it</button>
 
 <div class="stars" id="starsA" aria-hidden="true"></div>
 <div class="stars-lg" id="starsB" aria-hidden="true"></div>
@@ -888,7 +905,12 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
            was buried three sections down in the Re-entry demo. -->
       <p class="sub sub-lead reveal-p" style="--rd:.6s">Step away mid-thought. Come back to the exact sentence that starts you moving again — instead of spending an hour re-reading your own notes just to remember where you were.</p>
       <p class="sub reveal-p" style="--rd:1.05s">Thread keeps a live visual map of your thinking — the unfinished threads, open questions, and claims — so the moment you return, where you left off is already in front of you.</p>
-      <button class="cta-scroll" id="cta-see" type="button">See how it works ↓</button>
+      <!-- Primary action is now to TRY the live MVP (product-led), with the
+           "see how it works" scroll demoted to a secondary text link. -->
+      <div class="hero-cta">
+        <button class="cta-primary go" data-tryit type="button">Try it free</button>
+        <button class="cta-scroll" id="cta-see" type="button">or see how it works ↓</button>
+      </div>
     </main>
 
     <div class="scroll-hint" id="scroll-hint" style="font-size:20px">↓</div>
@@ -1100,17 +1122,17 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
   <h2 class="reveal" style="--i:0">Your mind, in motion.</h2>
   <p class="lead reveal" style="--i:1">The canvas that remembers where your thinking paused, so you always pick up exactly where you left off.</p>
   <div class="signup reveal" style="--i:2">
-    <form class="cta">
-      <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
-      <button class="go" type="submit">Get early access</button>
-    </form>
-    <!-- Qualifier sits UNDER the button, the placement every comparable page
-         uses. It replaces the bare "$12/month" that used to sit above the
-         form: a live price next to a waitlist CTA read as "you can't have it
-         yet" and "this costs money" at once, and collected no willingness-to-
-         pay signal because nobody was being asked to pay. The price question
-         now happens after capture, in .price-ask below. -->
-    <div class="price-note">Free during early access.</div>
+    <!-- Primary action: try the live MVP. Product-led, per the comp set. -->
+    <button class="cta-primary go" data-tryit type="button">Try it free</button>
+    <div class="price-note">Free during early access · no account needed to look around.</div>
+
+    <!-- Secondary: email is now the update list, not the way in. -->
+    <div class="secondary-signup">
+      <span class="or-updates">Prefer to follow along? Get updates:</span>
+      <form class="cta">
+        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+        <button class="go go-secondary" type="submit">Join the list</button>
+      </form>
     <div class="form-done" hidden>
       <span class="fd-msg">Thanks, you're on the list.</span>
       <div class="price-ask">
@@ -1121,28 +1143,19 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
       <span class="pa-thanks" hidden>Noted, thank you.</span>
     </div>
     <div class="form-err" hidden>Something went wrong. Try again?</div>
-  </div>
+    </div><!-- /.secondary-signup -->
+  </div><!-- /.signup -->
 </section>
 
 <!-- ══ SECTION 6: sticky CTA bar - appears past hero, hides at hero and at the in-flow closing ══ -->
+<!-- Sticky bar is now a single-purpose persistent primary CTA: try the MVP.
+     The email form lives only in the closing section (secondary). -->
 <div class="sticky-cta" id="sticky-cta">
-  <div class="sc-head">Your mind, in motion.</div>
-  <div class="sc-sub">The canvas that remembers where your thinking paused, so you always pick up exactly where you left off.</div>
-  <form class="cta">
-    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
-    <button class="go" type="submit">Get early access</button>
-  </form>
-  <div class="price-note">Free during early access.</div>
-  <div class="form-done" hidden>
-    <span class="fd-msg">Thanks, you're on the list.</span>
-    <div class="price-ask">
-      <span class="pa-q">$12/month at launch. Does that work?</span>
-      <button type="button" class="pa-btn" data-ans="yes">Yes</button>
-      <button type="button" class="pa-btn" data-ans="too_much">Too much</button>
-    </div>
-    <span class="pa-thanks" hidden>Noted, thank you.</span>
+  <div class="sc-copy">
+    <div class="sc-head">Your mind, in motion.</div>
+    <div class="sc-sub">Pick up exactly where your thinking left off.</div>
   </div>
-  <div class="form-err" hidden>Something went wrong. Try again?</div>
+  <button class="go" data-tryit type="button">Try it free</button>
 </div>
 
 <script>
@@ -1150,13 +1163,17 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
   'use strict';
   // THREAD LANDING PAGE — KILL NUMBERS
   // Recorded before launch, not after.
-  // CTA click rate target: > 40%
-  //   (CTA_CLICK events / total page views)
-  // Email capture rate target: > 20%
-  //   (EMAIL_CAPTURE events / CTA_CLICK events)
-  // If either number is below target after
-  // 50+ visitors, the landing page needs
-  // revision before further outreach.
+  // Funnel is PRODUCT-LED (try the MVP), not a waitlist.
+  // PRIMARY — Try-it click rate target: > 30%
+  //   (TRY_IT_CLICK events / total page views)
+  // TRUE north star lives in the app: first-session
+  //   activation (>=3 nodes) and next-day return.
+  // SECONDARY — Email capture (updates list):
+  //   EMAIL_CAPTURE events; no hard target, it's a
+  //   nice-to-have signal, not the conversion.
+  // If the primary is below target after 100+
+  // visitors, the landing page needs revision
+  // before further outreach.
   // Do not rationalize a number below target.
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
@@ -1534,30 +1551,26 @@ svg.hovering .medge:not(.hot) { opacity:0.08; }
     document.getElementById('linear-sec').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
   });
 
-  /* ── P3: header CTA scrolls to the closing signup and focuses the email.
-     The CTA_CLICK event is fired by the button.go listener below (it carries
-     the .go class), so this handler is only the scroll/focus behaviour. ── */
-  var headerCta = document.getElementById('header-cta');
-  if (headerCta) {
-    headerCta.addEventListener('click', function () {
-      var closing = document.querySelector('.closing');
-      if (closing) closing.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
-      var email = document.querySelector('.closing input[type=email]');
-      if (email) setTimeout(function () { email.focus({ preventScroll: true }); }, reduced ? 0 : 500);
-    });
-  }
+  /* ── PRIMARY ACTION: try the live MVP ───────────────────────────────────
+     BEFORE LAUNCH: paste the deployed app URL below. Until it's a real URL,
+     the Try-it buttons open the placeholder (harmless in preview) and the
+     TRY_IT_CLICK event still fires so the funnel can be tested. Every element
+     with data-tryit (header, hero, closing, sticky bar) routes here. */
+  var APP_URL = 'YOUR_APP_URL'; // e.g. https://app.thread.xyz
 
-  /* ── Tracking: EVENT 1 of 2 (CTA_CLICK) ─────────────────────────────────
-     Fires on click of either "Get early access" button (closing section +
-     sticky footer bar), whether or not the submission succeeds. This page's
-     hero CTA is the "See how it works" scroll button, which is deliberately
-     NOT tracked: CTA_CLICK is defined as the "Get early access" buttons.
-     No other events exist on this page. */
-  document.querySelectorAll('button.go').forEach(function (btn) {
+  /* ── Tracking: PRIMARY metric (TRY_IT_CLICK) ────────────────────────────
+     The funnel pivoted from a waitlist to product-led: the number that matters
+     is now "visitors who clicked through to try the MVP", not email signups.
+     KILL NUMBERS (revised): Try-it click rate > 30% of unique visitors; of
+     those, first-session activation (creates >=3 nodes) is the real target and
+     is measured in the app, not here. EMAIL_CAPTURE is now a SECONDARY signal
+     (people who only want updates). Do not rationalize a number below target. */
+  document.querySelectorAll('[data-tryit]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       if (typeof window !== 'undefined' && window.va) {
-        window.va('event', { name: 'CTA_CLICK' });
+        window.va('event', { name: 'TRY_IT_CLICK' });
       }
+      window.open(APP_URL, '_blank', 'noopener');
     });
   });
 
