@@ -37,25 +37,30 @@ function readCappedBody(req: IncomingMessage, res: ServerResponse): Promise<stri
   })
 }
 
-// ─── Replay AI proxy (Anthropic) ────────────────────────────────────────────
-// Keeps the Anthropic key server-side. The browser POSTs to same-origin
-// /api/replay (no key, no dangerous-direct-browser header); this middleware
-// injects auth and forwards to the Messages API. Runs in `vite dev` and
-// `vite preview`. For a production static deploy, replicate this endpoint in
-// whatever backend serves the built app.
+// ─── Replay AI proxy (Groq) ─────────────────────────────────────────────────
+// REPOINTED FROM ANTHROPIC TO GROQ (July 2026) so local dev matches the
+// deployed api/replay.ts and the whole app runs on the single free Groq key —
+// no paid Anthropic key needed. Speaks Anthropic on both ends (accepts
+// { system, messages, max_tokens }, returns data.content[0].text), translating
+// Anthropic → Groq in and Groq → Anthropic out, so ReentryCard is unchanged.
 //
-// Set ANTHROPIC_API_KEY in .env.local (not VITE_-prefixed, so it never reaches
-// the client bundle). Missing key → 503 → the card falls back gracefully.
-//
-// NOTE: Probe and Trace no longer ride this handler — they were moved to the
-// Groq-backed /api/chat proxy below (Anthropic requires a paid key; Groq's
-// free tier keeps Probe/Trace working). Replay/Flow is untouched.
-function anthropicReplayProxy(): Plugin {
+// Set GROQ_API_KEY in .env.local (not VITE_-prefixed). Missing key → 503 → the
+// Replay card falls back gracefully. To restore Claude-quality summaries, see
+// git history for the Anthropic version and set ANTHROPIC_API_KEY.
+function groqReplayProxy(): Plugin {
   let apiKey = ''
-  // Base URL is fixed to the public API on purpose — we deliberately do NOT
-  // read ANTHROPIC_BASE_URL, so an ambient gateway from the surrounding shell
-  // can't silently redirect the app's requests.
-  const baseUrl = 'https://api.anthropic.com'
+  const baseUrl = 'https://api.groq.com/openai/v1'
+  const model = 'llama-3.3-70b-versatile'
+
+  const systemToText = (system: unknown): string => {
+    if (typeof system === 'string') return system
+    if (Array.isArray(system)) {
+      return system
+        .map(b => (b && typeof b === 'object' && 'text' in b ? String((b as { text?: string }).text ?? '') : ''))
+        .join('')
+    }
+    return ''
+  }
 
   const handler: Connect.NextHandleFunction = (req, res: ServerResponse) => {
     if (req.method !== 'POST') { res.statusCode = 405; res.end('Method Not Allowed'); return }
@@ -68,20 +73,55 @@ function anthropicReplayProxy(): Plugin {
     void (async () => {
       const body = await readCappedBody(req, res)
       if (body === null) return   // 413 already sent
+      let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number }
       try {
-        const upstream = await fetch(`${baseUrl}/v1/messages`, {
+        parsed = JSON.parse(body || '{}')
+      } catch {
+        res.statusCode = 400
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ error: 'bad_json' }))
+        return
+      }
+
+      // Anthropic → OpenAI/Groq message array.
+      const groqMessages: { role: string; content: string }[] = []
+      const systemText = systemToText(parsed.system)
+      if (systemText) groqMessages.push({ role: 'system', content: systemText })
+      if (Array.isArray(parsed.messages)) {
+        groqMessages.push(...(parsed.messages as { role: string; content: string }[]))
+      }
+
+      try {
+        const upstream = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
+            'authorization': `Bearer ${apiKey}`,
           },
-          body,
+          body: JSON.stringify({
+            model,
+            messages: groqMessages,
+            max_tokens: Math.min(Math.max(1, Number(parsed.max_tokens) || 1000), 2000),
+            temperature: parsed.temperature ?? 0,
+          }),
         })
-        const text = await upstream.text()
-        res.statusCode = upstream.status
+
+        if (!upstream.ok) {
+          const errText = await upstream.text()
+          res.statusCode = upstream.status
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify({ error: errText }))
+          return
+        }
+
+        const data = await upstream.json() as { choices?: { message?: { content?: string } }[] }
+        const text = data.choices?.[0]?.message?.content ?? ''
+
+        // Groq → Anthropic-shaped response so ReentryCard reads
+        // data.content[0].text unchanged.
+        res.statusCode = 200
         res.setHeader('content-type', 'application/json')
-        res.end(text)
+        res.end(JSON.stringify({ content: [{ type: 'text', text }] }))
       } catch {
         res.statusCode = 502
         res.setHeader('content-type', 'application/json')
@@ -91,11 +131,9 @@ function anthropicReplayProxy(): Plugin {
   }
 
   return {
-    name: 'anthropic-replay-proxy',
+    name: 'groq-replay-proxy',
     config(_, { mode }) {
-      // loadEnv reads .env / .env.local (and matching process.env). We only pull
-      // the key here — never the base URL.
-      apiKey = loadEnv(mode, process.cwd(), '').ANTHROPIC_API_KEY ?? ''
+      apiKey = loadEnv(mode, process.cwd(), '').GROQ_API_KEY ?? ''
     },
     configureServer(server) {
       server.middlewares.use('/api/replay', handler)
@@ -225,6 +263,6 @@ function groqChatProxy(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), anthropicReplayProxy(), groqChatProxy()],
+  plugins: [react(), tailwindcss(), groqReplayProxy(), groqChatProxy()],
   server: { allowedHosts: true, port: 5181 },
 })

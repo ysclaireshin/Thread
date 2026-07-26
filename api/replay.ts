@@ -1,23 +1,36 @@
-// Production serverless equivalent of the `anthropicReplayProxy` Vite middleware
-// in vite.config.ts (Flow's Replay AI summary). Same reason as api/chat.ts: the
-// dev middleware does not exist in a deployed build.
+// Production serverless handler for Flow's Replay AI summary.
 //
-// NOTE ON KEYS: this path talks to Anthropic and needs a valid ANTHROPIC_API_KEY
-// in the Vercel environment. If the key is absent (or invalid) this returns 503,
-// which is the behaviour the Replay card already degrades on gracefully — Flow
-// still works, it just shows no AI summary. If you'd rather Replay run on the
-// free Groq tier like Probe/Trace, say so and this file can point at the Groq
-// path instead; it is deliberately NOT switched silently, because that would
-// change which model writes the user's session summary.
+// REPOINTED FROM ANTHROPIC TO GROQ (July 2026) so the whole app runs on the
+// single free Groq key — no paid Anthropic account is needed for the MVP.
+// Same contract as api/chat.ts: it accepts an Anthropic-shaped request
+// { system, messages, max_tokens }, translates it to OpenAI/Groq on the way in,
+// and reshapes the reply back to Anthropic { content: [{ type:'text', text }] }
+// on the way out, so lib/ReentryCard.tsx reads data.content[0].text unchanged.
+//
+// To upgrade Replay to Claude Haiku's higher-quality summaries later, revert
+// this file to the Anthropic path (git history) and set ANTHROPIC_API_KEY.
 
 import {
   type Req, type Res, send, bodyTooLarge, clampMaxTokens, authorizeAndMeter,
 } from './_shared'
 
-const ANTHROPIC_BASE_URL = 'https://api.anthropic.com'
+const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 // Pinned server-side. The client sends a `model` field, but it is IGNORED:
 // forwarding it would let a caller select an expensive model on our account.
-const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001'
+const GROQ_MODEL = 'llama-3.3-70b-versatile'
+
+// The client sends `system` in Anthropic block-array form
+//   [{ type: 'text', text: '...', cache_control: {...} }]
+// (it also accepts a plain string). OpenAI/Groq wants a single string.
+function systemToText(system: unknown): string {
+  if (typeof system === 'string') return system
+  if (Array.isArray(system)) {
+    return system
+      .map(b => (b && typeof b === 'object' && 'text' in b ? String((b as { text?: string }).text ?? '') : ''))
+      .join('')
+  }
+  return ''
+}
 
 export default async function handler(req: Req, res: Res): Promise<void> {
   if (req.method !== 'POST') {
@@ -26,7 +39,7 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     return
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY ?? ''
+  const apiKey = process.env.GROQ_API_KEY ?? ''
   if (!apiKey) {
     send(res, 503, { error: 'no_api_key' })
     return
@@ -60,27 +73,40 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     return
   }
 
+  // Anthropic -> OpenAI/Groq message array.
+  const groqMessages: { role: string; content: string }[] = []
+  const systemText = systemToText(parsed.system)
+  if (systemText) groqMessages.push({ role: 'system', content: systemText })
+  groqMessages.push(...(parsed.messages as { role: string; content: string }[]))
+
   try {
-    const upstream = await fetch(`${ANTHROPIC_BASE_URL}/v1/messages`, {
+    const upstream = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        authorization: `Bearer ${apiKey}`,
       },
       // Rebuilt from validated parts rather than forwarding the client body
       // verbatim, so model choice and token ceiling stay server-controlled.
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
+        model: GROQ_MODEL,
+        messages: groqMessages,
         max_tokens: clampMaxTokens(parsed.max_tokens, 200, 1000),
-        system: parsed.system,
-        messages: parsed.messages,
+        temperature: 0,
       }),
     })
-    const text = await upstream.text()
-    res.statusCode = upstream.status
-    res.setHeader('content-type', 'application/json')
-    res.end(text)
+
+    if (!upstream.ok) {
+      const errText = await upstream.text()
+      send(res, upstream.status, { error: errText })
+      return
+    }
+
+    const data = (await upstream.json()) as { choices?: { message?: { content?: string } }[] }
+    const text = data.choices?.[0]?.message?.content ?? ''
+
+    // Groq -> Anthropic-shaped response (no client changes needed).
+    send(res, 200, { content: [{ type: 'text', text }] })
   } catch {
     send(res, 502, { error: 'upstream_unreachable' })
   }
