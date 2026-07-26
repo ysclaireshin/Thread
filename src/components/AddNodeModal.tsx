@@ -8,11 +8,11 @@ interface Props { onClose: () => void; prefillDescription?: string }
 export function AddNodeModal({ onClose, prefillDescription }: Props) {
   const { nodes, addNode } = useStore()
   const [organizer, setOrganizer] = useState<Organizer>('core_idea')
-  const [label, setLabel] = useState(() => {
-    if (!prefillDescription) return ''
-    const first = prefillDescription.split(/[.!?\n]/)[0].trim()
-    return first.length > 60 ? first.slice(0, 60) + '…' : first
-  })
+  // The selected passage is CONTEXT and goes into Notes only. Label starts
+  // empty (autofocused below) so the user writes their own concise claim —
+  // deriving it from the same text made Label and Notes identical for short
+  // selections, which read as "the notes showed up as the label".
+  const [label, setLabel] = useState('')
   const [description, setDescription] = useState(prefillDescription ?? '')
   const [centrality, setCentrality] = useState(0.6)
   const [confidence, setConfidence] = useState<1 | 2 | 3>(2)
