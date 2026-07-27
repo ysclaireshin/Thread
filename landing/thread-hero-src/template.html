@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread — Pick up exactly where your thinking left off</title>
+<style>
+/* ── Fonts (embedded, self-contained) ─────────────────────────────────── */
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_400@@) format('woff2'); font-weight:400; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_500@@) format('woff2'); font-weight:500; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist'; src:url(data:font/woff2;base64,@@GEIST_600@@) format('woff2'); font-weight:600; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist Mono'; src:url(data:font/woff2;base64,@@MONO_400@@) format('woff2'); font-weight:400; font-style:normal; font-display:block; }
+@font-face { font-family:'Geist Mono'; src:url(data:font/woff2;base64,@@MONO_500@@) format('woff2'); font-weight:500; font-style:normal; font-display:block; }
+
+/* ── Tokens (Thread design system) ────────────────────────────────────── */
+:root {
+  --canvas:     #08090A;
+  --surface-1:  #0F1011;
+  --surface-2:  #141516;
+  --surface-3:  #1C1D1F;
+  --border:        #232425;
+  --border-subtle: #1A1B1C;
+  --text-primary:   #E8E6DC;
+  --text-secondary: #9A9893;
+  --text-tertiary:  #5C5B58;
+  --text-inverted:  #08090A;
+  --core:    #4CC9A0;
+  --tension: #E06B5A;
+  --open:    #E8A84A;
+  --sun:     #F5B944;
+  --cluster-y: #E8C547;
+  --font-sans: 'Geist', -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+
+html { scroll-behavior: auto; }
+html, body {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background:#1A4A3A; color:var(--text-primary); }
+*:focus-visible { outline:1px solid var(--core); outline-offset:2px; }
+
+/* ── Fixed chrome: brand, progress bar, glow, stars ───────────────────── */
+.progress {
+  position: fixed; top:0; left:0; z-index:60;
+  width:100%; height:2px;
+  background: var(--core);
+  opacity:.55;
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events:none;
+}
+.brand {
+  position: fixed;
+  top:26px; left:min(6vw,72px);
+  z-index:50;
+  display:flex; align-items:center; gap:7px;
+}
+.brand span {
+  font-family:var(--font-sans); font-weight:600; font-size:14px;
+  letter-spacing:-0.02em; color:var(--text-primary);
+}
+.stars, .stars-lg {
+  position: fixed; left:50%; top:50%;
+  border-radius:50%; background:transparent;
+  z-index:0; pointer-events:none;
+  will-change: transform;
+}
+.stars    { width:2px; height:2px; box-shadow: @@STARS_SM@@; }
+.stars-lg { width:3px; height:3px; box-shadow: @@STARS_LG@@; }
+#glow {
+  position: fixed; left:0; top:0;
+  width:860px; height:860px; border-radius:50%;
+  background: radial-gradient(circle, rgba(245,185,68,0.09) 0%, rgba(245,185,68,0.03) 42%, transparent 70%);
+  transform: translate3d(60vw,45vh,0) translate(-50%,-50%);
+  pointer-events:none; will-change:transform; z-index:0;
+}
+
+/* ══ ACT 1 — pinned hero scene: sun alone → full system + content ══════ */
+.scene { position:relative; height:300vh; }
+.stage {
+  position:sticky; top:0;
+  height:100vh; overflow:hidden;
+  display:flex; align-items:center;
+}
+
+/* Solar system */
+.system-wrap {
+  position:absolute; z-index:2;
+  top:50%; right:max(2.5vw,24px);
+  transform: translateY(-50%);
+}
+.system {
+  position:relative;
+  width:min(50vw, 84vh, 700px);
+  aspect-ratio:1;
+  container-type:size;
+}
+.ring, .orbit {
+  position:absolute; left:50%; top:50%;
+  width:calc(var(--r)*2); height:calc(var(--r)*2);
+  margin-left:calc(var(--r)*-1); margin-top:calc(var(--r)*-1);
+  border-radius:50%;
+}
+.ring { border:1px solid rgba(35,36,37,0.9); opacity:var(--sysop,0); }
+/* Same period for every body: the configuration rotates rigidly, so
+   label spacing chosen at load can never drift into collision. */
+.orbit { animation:spin 240s linear infinite; animation-delay:var(--d); opacity:var(--sysop,0); }
+.holder {
+  position:absolute; left:100%; top:50%; width:0; height:0;
+  animation:spinrev 240s linear infinite; animation-delay:var(--d);
+}
+/* .arm rotates with the orbit (no counter-spin): its local +x axis always
+   points radially outward, so the comet tail keeps facing away from the sun */
+.arm { position:absolute; left:100%; top:50%; width:0; height:0; }
+@keyframes spin    { to { transform:rotate(1turn); } }
+@keyframes spinrev { to { transform:rotate(-1turn); } }
+
+/* Sun = main idea. Design E: shape morphs while colour breathes. */
+#sun-anchor { position:absolute; left:50%; top:50%; width:0; height:0; }
+.sun {
+  position:absolute; left:50%; top:50%;
+  width:46px; height:46px;
+  transform: translate(-50%,-50%);
+  will-change: transform;
+  animation: liquid-morph 12s ease-in-out infinite, liquid-hue 9s ease-in-out infinite;
+  z-index:3;
+}
+@keyframes liquid-morph {
+  0%   { border-radius:60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25%  { border-radius:30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50%  { border-radius:50% 60% 30% 60% / 30% 60% 70% 40%; }
+  75%  { border-radius:60% 40% 60% 30% / 70% 30% 40% 60%; }
+  100% { border-radius:60% 40% 30% 70% / 60% 30% 70% 40%; }
+}
+@keyframes liquid-hue {
+  0%, 100% { background:#F5B944; box-shadow:0 0 18px rgba(245,185,68,0.5), 0 0 44px rgba(245,185,68,0.22), 0 0 110px rgba(245,185,68,0.10); }
+  33%       { background:#F5902A; box-shadow:0 0 22px rgba(245,144,42,0.55), 0 0 52px rgba(245,144,42,0.22), 0 0 110px rgba(245,144,42,0.10); }
+  66%       { background:#F5D84A; box-shadow:0 0 22px rgba(245,216,74,0.5), 0 0 52px rgba(245,216,74,0.22), 0 0 110px rgba(245,216,74,0.10); }
+}
+
+.planet {
+  position:absolute; width:26px; height:26px;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background: radial-gradient(circle at 36% 36%, var(--hi), var(--c));
+  box-shadow: 0 0 22px 6px var(--halo);
+}
+.asteroid-glow { position:absolute; transform:translate(-50%,-50%); filter:drop-shadow(0 0 10px rgba(224,107,90,0.45)); }
+.asteroid {
+  width:18px; height:18px; background:var(--tension);
+  clip-path: polygon(50% 0%, 84% 16%, 100% 52%, 80% 88%, 42% 100%, 10% 78%, 0% 40%, 20% 10%);
+}
+.comet-body {
+  position:absolute; width:15px; height:15px;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background:var(--open);
+  box-shadow: 0 0 0 5px rgba(232,168,74,0.08), 0 0 14px 3px rgba(232,168,74,0.30);
+}
+.comet-body::after {
+  content:''; position:absolute; inset:-5px; border-radius:50%;
+  border:1px solid rgba(232,168,74,0.3);
+}
+.comet-tail {
+  position:absolute; left:10px; top:-1.5px;
+  width:56px; height:3px; border-radius:2px;
+  background: linear-gradient(90deg, rgba(232,168,74,0.55), rgba(232,168,74,0.22) 40%, transparent);
+}
+.comet-tail.thin {
+  top:3px; width:38px; height:1.5px;
+  transform:rotate(9deg); transform-origin:left center;
+  background: linear-gradient(90deg, rgba(232,168,74,0.18), transparent);
+}
+
+/* Orbital labels — Geist, primary text, always legible */
+.tag {
+  position:absolute; left:0; top:var(--ty,18px);
+  transform:translateX(-50%);
+  text-align:center; white-space:nowrap;
+  font-family:var(--font-sans); line-height:1.45;
+  opacity:var(--labop,0);
+  text-shadow: 0 1px 8px rgba(8,9,10,0.95), 0 0 3px rgba(8,9,10,0.9);
+}
+.tag .cat { display:block; font-size:10px; font-weight:500; letter-spacing:0.02em; color:var(--c); }
+.tag .txt { display:block; font-size:12px; font-weight:400; color:var(--text-primary); }
+.sun-tag {
+  position:absolute; left:50%; top:calc(50% + 34px);
+  transform:translateX(-50%);
+  text-align:center; white-space:nowrap;
+  font-family:var(--font-sans); line-height:1.45;
+  opacity:var(--labop,0);
+  text-shadow: 0 1px 8px rgba(8,9,10,0.95);
+}
+.sun-tag .cat { display:block; font-size:10px; font-weight:500; letter-spacing:0.02em; color:var(--sun); }
+.sun-tag .txt { display:block; font-size:12px; color:var(--text-primary); }
+
+/* Intro-phase furniture */
+.intro-tag {
+  position:absolute; left:50%; top:calc(50% + 150px);
+  transform:translateX(-50%);
+  font-family:var(--font-sans); font-size:16px; font-weight:400;
+  color:var(--text-secondary); white-space:nowrap;
+  z-index:4;
+}
+.scroll-hint {
+  position:absolute; left:50%; bottom:34px;
+  transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  font-family:var(--font-mono); font-size:11px; color:var(--text-secondary);
+  z-index:4;
+}
+.scroll-hint i {
+  display:block; width:1px; height:34px;
+  background: linear-gradient(180deg, transparent, var(--text-secondary));
+  animation: hintdrop 1.8s ease-in-out infinite;
+}
+@keyframes hintdrop {
+  0%   { transform:scaleY(0); transform-origin:top; opacity:0; }
+  40%  { transform:scaleY(1); transform-origin:top; opacity:1; }
+  100% { transform:scaleY(0); transform-origin:bottom; opacity:.4; }
+}
+
+/* Hero content column — placed on the 46% line, deliberate mass */
+.content {
+  position:relative; z-index:3;
+  max-width:860px;
+  padding: 0 min(6vw,96px);
+  align-self:center;
+  transform: translateY(-2vh);
+  visibility:hidden;
+}
+.content.in { visibility:visible; }
+h1 {
+  font-size: clamp(36px, 3.6vw + 10px, 62px);
+  font-weight:600; letter-spacing:-0.025em; line-height:1.08;
+  color:var(--text-primary);
+  max-width:19ch;
+}
+.sub {
+  margin-top:24px;
+  font-size:17px; line-height:1.65;
+  color:var(--text-secondary);
+  max-width:46ch;
+}
+.w {
+  display:inline-block; opacity:0; transform:translateY(10px);
+}
+.in .w { animation: rise .38s ease-out forwards; animation-delay:var(--d); }
+@keyframes rise { to { opacity:1; transform:none; } }
+.price {
+  margin-top:36px;
+  font-family:var(--font-mono); font-size:15px; font-weight:500;
+  color:var(--text-primary);
+  opacity:0; transform:translateY(10px);
+}
+.in .price { animation: rise .38s ease-out forwards; animation-delay:1.3s; }
+.price .per { color:var(--text-secondary); font-weight:400; }
+.signup { margin-top:14px; opacity:0; transform:translateY(10px); }
+.in .signup { animation: rise .38s ease-out forwards; animation-delay:1.45s; }
+
+form.cta { display:flex; gap:10px; max-width:440px; }
+input[type=email] {
+  flex:1; min-width:0; height:46px; padding:0 14px;
+  font-family:var(--font-sans); font-size:15px;
+  color:var(--text-primary);
+  background:var(--surface-1);
+  border:1px solid var(--border); border-radius:var(--radius-md);
+  transition: border-color 120ms ease;
+}
+input::placeholder { color:var(--text-secondary); font-family:var(--font-sans); }
+input[type=email]:focus { border-color:#3A3B3C; outline:none; }
+input[type=email]:focus-visible { outline:1px solid var(--core); outline-offset:2px; }
+button.go {
+  height:46px; padding:0 20px;
+  font-family:var(--font-sans); font-size:15px; font-weight:500;
+  color:var(--text-inverted); background:var(--core);
+  border:none; border-radius:var(--radius-md);
+  cursor:pointer; white-space:nowrap;
+  transition: background 120ms ease, transform 120ms ease;
+}
+button.go:hover { background:#5FD4AC; transform:translateY(-1px); }
+.form-done {
+  height:46px; display:flex; align-items:center;
+  font-family:var(--font-sans); font-size:14px; color:var(--core);
+}
+.form-done[hidden] { display:none; }
+
+/* ══ Shared section chrome ═════════════════════════════════════════════ */
+.view-section {
+  position:relative; z-index:2;
+  max-width:1160px;
+  margin:0 auto;
+  padding: 20vh min(6vw,72px) 6vh;
+}
+.kicker {
+  font-family:var(--font-mono); font-size:11px; font-weight:500;
+  letter-spacing:0.04em; color:var(--k);
+}
+.view-section h2 {
+  margin-top:14px;
+  font-size: clamp(30px, 2.6vw + 8px, 46px);
+  font-weight:600; letter-spacing:-0.02em; line-height:1.1;
+  color:var(--text-primary);
+}
+.lead {
+  margin-top:16px;
+  font-size:16px; line-height:1.65;
+  color:var(--text-secondary);
+  max-width:56ch;
+}
+/* scroll reveals */
+.reveal { opacity:0; transform:translateY(26px); transition: opacity .6s ease-out, transform .6s ease-out; transition-delay: calc(var(--i,0)*70ms); }
+.reveal.in { opacity:1; transform:none; }
+
+/* ══ ACT 2 — Linear view glimpse ═══════════════════════════════════════ */
+.panel {
+  margin-top:44px;
+  display:grid; grid-template-columns: 54% 46%;
+  border:1px solid var(--border); border-radius:var(--radius-lg);
+  background:var(--canvas);
+  overflow:hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+.pane { min-width:0; }
+.draft-pane { border-right:1px solid var(--border); display:flex; flex-direction:column; }
+.pane-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 16px;
+  border-bottom:1px solid var(--border-subtle);
+  font-family:var(--font-sans); font-size:11px; color:var(--text-tertiary);
+}
+.draft-body {
+  padding:20px 24px; flex:1;
+  font-family:var(--font-sans); font-size:14px; line-height:1.75;
+  color:var(--text-primary);
+}
+.draft-body p + p { margin-top:14px; }
+mark { color:inherit; border-radius:2px; padding:0 1px; }
+.mk-core    { background:rgba(76,201,160,0.10);  border-bottom:1.5px solid rgba(76,201,160,0.4); }
+.mk-tension { background:rgba(224,107,90,0.10);  border-bottom:1.5px solid rgba(224,107,90,0.4); }
+.mk-open    { background:rgba(232,168,74,0.10);  border-bottom:1.5px solid rgba(232,168,74,0.4); }
+.caret {
+  display:inline-block; width:2px; height:1.05em;
+  background:var(--core); vertical-align:text-bottom; margin-left:1px;
+  animation: blink 1.1s steps(2, start) infinite;
+}
+@keyframes blink { 50% { opacity:0; } }
+.pane-foot {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 16px;
+  border-top:1px solid var(--border-subtle);
+  font-family:var(--font-sans); font-size:10px; color:var(--text-tertiary);
+}
+.save-pill {
+  background: rgba(76,201,160,0.08);
+  border:1px solid rgba(76,201,160,0.15);
+  border-top:1px solid rgba(76,201,160,0.25);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5);
+  color:var(--text-primary);
+  font-family:var(--font-sans); font-size:11px; font-weight:500; letter-spacing:0.03em;
+  padding:7px 18px; border-radius:20px; cursor:pointer;
+}
+.session-marker {
+  padding:8px 16px;
+  font-family:var(--font-sans); font-size:11px; color:var(--open);
+}
+.sec-h {
+  padding:14px 16px 6px;
+  font-family:var(--font-sans); font-size:11px; font-weight:500;
+  color:var(--text-tertiary);
+  border-bottom:1px solid var(--border-subtle);
+}
+.row {
+  position:relative;
+  padding:12px 16px 12px 20px;
+  cursor:default;
+  transition: background 120ms ease;
+}
+.row:hover { background:var(--surface-1); }
+.row .bar {
+  position:absolute; left:0; top:0; bottom:0; width:2px;
+  background:var(--ac);
+}
+.row.focusrow .bar { animation:pulse-accent 2s ease-in-out infinite; }
+@keyframes pulse-accent { 0%,100% { opacity:.6; } 50% { opacity:1; } }
+.row.indent { padding-left:44px; }
+.row.indent .bar { left:24px; }
+.r1 { display:flex; align-items:center; gap:8px; }
+.r1 .dot { width:6px; height:6px; border-radius:50%; background:var(--ac); flex-shrink:0; }
+.r1 .ttl {
+  font-family:var(--font-sans); font-size:15px; font-weight:500;
+  color:var(--text-primary); line-height:1.3;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.dsc {
+  margin-top:4px;
+  font-family:var(--font-sans); font-size:13px; line-height:1.4;
+  color:var(--text-secondary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.r3 { display:flex; align-items:center; gap:8px; margin-top:6px; }
+.r3 .typ { font-family:var(--font-mono); font-size:10px; color:var(--ac); }
+.r3 .cmp { font-family:var(--font-sans); font-size:11px; color:var(--text-tertiary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.r3 .sp { flex:1; }
+.r3 .ts { font-family:var(--font-mono); font-size:10px; color:var(--text-tertiary); white-space:nowrap; }
+.row.added { animation: rowin .4s ease-out; }
+@keyframes rowin { from { opacity:0; transform:translateY(-6px); background:var(--surface-2); } }
+.try-row {
+  display:flex; align-items:center; gap:10px;
+  margin:10px 16px 16px; padding:4px 4px 4px 14px;
+  border:1px dashed rgba(232,168,74,0.35); border-radius:var(--radius-md);
+}
+.try-row .try-dot { width:6px; height:6px; border-radius:50%; background:var(--open); flex-shrink:0; }
+.try-row input {
+  flex:1; min-width:0; height:36px;
+  background:transparent; border:none; outline:none;
+  font-family:var(--font-sans); font-size:13px; color:var(--text-primary);
+}
+.try-row input:focus-visible { outline:none; }
+.try-hint { font-family:var(--font-mono); font-size:10px; color:var(--open); padding-right:10px; white-space:nowrap; }
+
+/* ══ ACT 3 — Map view glimpse ══════════════════════════════════════════ */
+.tilt { margin-top:44px; perspective:1200px; }
+.map-card {
+  position:relative;
+  border:1px solid var(--border); border-radius:var(--radius-lg);
+  overflow:hidden;
+  background:
+    radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--canvas);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+  transition: transform .25s ease-out;
+  transform-style:preserve-3d;
+  will-change: transform;
+}
+.map-card svg { display:block; width:100%; height:auto; }
+.medge { fill:none; stroke-linecap:round; transition: stroke .18s ease, opacity .3s ease; }
+.mnode { cursor:pointer; }
+.mnode circle.body { transition: stroke .15s ease; }
+.mnode text {
+  font-family:var(--font-sans);
+  pointer-events:none;
+  paint-order:stroke;
+  stroke:rgba(8,9,10,0.78); stroke-width:3px; stroke-linejoin:round;
+}
+.mnode, .medge { transition: opacity .3s ease; }
+svg.hovering .mnode:not(.hot) { opacity:0.14; }
+svg.hovering .medge:not(.hot) { opacity:0.08; }
+.mnode .pop { transform:scale(0); transform-origin:center; transition:transform .5s cubic-bezier(.2,.9,.3,1.2); transition-delay:var(--pd,0s); }
+.map-drawn .mnode .pop { transform:scale(1); }
+@keyframes focus-pulse-svg { 0%,100% { stroke:rgba(232,168,74,0.45); } 50% { stroke:rgba(232,168,74,1); } }
+.focus-ring { animation: focus-pulse-svg 2.2s ease-in-out infinite; }
+.map-note {
+  position:absolute; left:16px; bottom:12px;
+  font-family:var(--font-mono); font-size:10px; color:var(--text-secondary);
+  background:rgba(8,9,10,0.7); padding:4px 10px; border-radius:3px;
+  border:1px solid var(--border-subtle);
+}
+
+/* ══ ACT 4 — closing CTA ═══════════════════════════════════════════════ */
+.closing {
+  position:relative; z-index:2;
+  max-width:720px; margin:0 auto;
+  padding: 22vh min(6vw,72px) 26vh;
+  text-align:center;
+}
+.closing h2 {
+  font-size: clamp(30px, 2.6vw + 8px, 46px);
+  font-weight:600; letter-spacing:-0.02em; color:var(--text-primary);
+}
+.closing .lead { margin-left:auto; margin-right:auto; }
+.closing .price { margin-top:30px; }
+.closing .signup { margin-top:14px; opacity:1; transform:none; }
+.closing form.cta { margin:0 auto; }
+.closing .form-done { justify-content:center; }
+/* closing reveals ride the .reveal system, not the hero .in system */
+.closing .price, .closing .signup { animation:none; }
+
+/* ══ Responsive ════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .system { width:min(44vw, 84vh, 700px); }
+}
+@media (max-width: 1000px) {
+  .stage { flex-direction:column; justify-content:center; gap:4vh; }
+  .brand { left:50%; transform:translateX(-50%); }
+  .system-wrap { position:static; transform:none; order:-1; }
+  .system { width:min(92vw, 52vh, 540px); }
+  .content { max-width:560px; padding:0 24px; text-align:center; transform:none; }
+  h1 { margin-inline:auto; }
+  .sub { margin-left:auto; margin-right:auto; }
+  form.cta { margin:0 auto; }
+  .form-done { justify-content:center; }
+  .intro-tag { top:auto; bottom:26vh; }
+  .panel { grid-template-columns:1fr; }
+  .draft-pane { border-right:none; border-bottom:1px solid var(--border); }
+  .view-section { padding-top:14vh; }
+}
+@media (max-width: 600px) {
+  .tag .txt, .sun-tag .txt { display:none; }
+  .draft-body { font-size:13px; }
+}
+@media (max-width: 520px) {
+  form.cta { flex-direction:column; }
+  button.go { width:100%; }
+}
+
+/* ══ Reduced motion: settle everything immediately ═════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .scene { height:100vh; }
+  .orbit, .holder, .sun, .scroll-hint i, .caret, .focus-ring,
+  .row.focusrow .bar { animation:none !important; }
+  .sun { border-radius:50%; background:var(--sun); box-shadow:0 0 36px 10px rgba(245,185,68,0.14), 0 0 90px 30px rgba(245,185,68,0.10); }
+  .in .w, .in .price, .in .signup { animation:none; opacity:1; transform:none; }
+  .reveal { transition:none; opacity:1; transform:none; }
+  .mnode .pop { transition:none; transform:scale(1); }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="brand">
+  <svg class="logo-sun" width="18" height="18" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ts-logo-fill" cx="38%" cy="32%" r="68%">
+        <stop offset="0%" stop-color="#ffe070" />
+        <stop offset="50%" stop-color="#f08818" />
+        <stop offset="100%" stop-color="#7a3a00" />
+      </radialGradient>
+      <radialGradient id="ts-logo-spec" cx="35%" cy="30%" r="42%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0.8)" />
+        <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+      </radialGradient>
+    </defs>
+    <path fill="url(#ts-logo-fill)">
+      <animate attributeName="d" dur="4s" repeatCount="indefinite" calcMode="spline"
+        keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
+        values="M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z;
+                M11,3.5 C15,2 19.5,7 18,12 C16.5,17 13,20 9,18.5 C5,17 2,13 3.5,9 C5,5 7,5 11,3.5 Z;
+                M11,3 C16,3 19.5,7 19,12 C18.5,17 14,20 10,18.5 C6,17 2.5,14 3,9.5 C3.5,5 6,3 11,3 Z;
+                M11,3.5 C15,2.5 19.5,7.5 18.5,12 C17.5,16.5 14,19.5 9.5,18.5 C5,17.5 2.5,13 3,9 C3.5,5 7,5 11,3.5 Z;
+                M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z" />
+    </path>
+    <ellipse cx="8.5" cy="8" rx="3.5" ry="2.2" fill="url(#ts-logo-spec)" />
+  </svg>
+  <span>thread</span>
+</div>
+
+<div class="stars" id="starsA" aria-hidden="true"></div>
+<div class="stars-lg" id="starsB" aria-hidden="true"></div>
+<div id="glow" aria-hidden="true"></div>
+
+<!-- ══ ACT 1: sun alone → hero ══ -->
+<section class="scene" id="hero-scene">
+  <div class="stage">
+    <div class="system-wrap" aria-hidden="true">
+      <div class="system" id="system">
+        <div class="ring" style="--r:16.4cqi"></div>
+        <div class="ring" style="--r:24.7cqi"></div>
+        <div class="ring" style="--r:33.5cqi"></div>
+
+        <div class="orbit" style="--r:16.4cqi; --d:-166.7s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">Your strongest claim</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:24.7cqi; --d:-220s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">Evidence that held up</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:33.5cqi; --d:-66.7s">
+          <div class="holder">
+            <div class="planet" style="--c:#4CC9A0; --hi:#8FE2C6; --halo:rgba(76,201,160,0.22)"></div>
+            <div class="tag" style="--c:#4CC9A0">
+              <span class="cat">Core idea</span>
+              <span class="txt">The framing that clicked</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:20.8cqi; --d:-30s">
+          <div class="holder">
+            <div class="asteroid-glow"><div class="asteroid"></div></div>
+            <div class="tag" style="--c:#E06B5A; --ty:16px">
+              <span class="cat">Tension</span>
+              <span class="txt">Where two ideas disagree</span>
+            </div>
+          </div>
+        </div>
+        <div class="orbit" style="--r:42.4cqi; --d:-183.3s">
+          <div class="arm">
+            <div class="comet-tail"></div>
+            <div class="comet-tail thin"></div>
+            <div class="comet-body"></div>
+          </div>
+          <div class="holder">
+            <div class="tag" style="--c:#E8A84A; --ty:16px">
+              <span class="cat">Open thought</span>
+              <span class="txt">Tomorrow's first question</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="sun-anchor"></div>
+        <div class="sun" id="sun"></div>
+        <div class="sun-tag">
+          <span class="cat">Main idea</span>
+          <span class="txt">What everything orbits</span>
+        </div>
+      </div>
+    </div>
+
+    <main class="content" id="hero-content">
+      <h1>
+        <span class="w" style="--d:0s">Pick</span>
+        <span class="w" style="--d:.07s">up</span>
+        <span class="w" style="--d:.14s">exactly</span>
+        <span class="w" style="--d:.21s">where</span>
+        <span class="w" style="--d:.28s">your</span>
+        <span class="w" style="--d:.35s">thinking</span>
+        <span class="w" style="--d:.42s">left</span>
+        <span class="w" style="--d:.49s">off.</span>
+      </h1>
+      <p class="sub">
+        <span class="w" style="--d:.6s">Thread</span>
+        <span class="w" style="--d:.63s">saves</span>
+        <span class="w" style="--d:.66s">the</span>
+        <span class="w" style="--d:.69s">state</span>
+        <span class="w" style="--d:.72s">of</span>
+        <span class="w" style="--d:.75s">your</span>
+        <span class="w" style="--d:.78s">thinking</span>
+        <span class="w" style="--d:.81s">—</span>
+        <span class="w" style="--d:.84s">what's</span>
+        <span class="w" style="--d:.87s">settled,</span>
+        <span class="w" style="--d:.9s">what's</span>
+        <span class="w" style="--d:.93s">in</span>
+        <span class="w" style="--d:.96s">tension,</span>
+        <span class="w" style="--d:.99s">what's</span>
+        <span class="w" style="--d:1.02s">still</span>
+        <span class="w" style="--d:1.05s">open</span>
+        <span class="w" style="--d:1.08s">—</span>
+        <span class="w" style="--d:1.11s">so</span>
+        <span class="w" style="--d:1.14s">your</span>
+        <span class="w" style="--d:1.17s">next</span>
+        <span class="w" style="--d:1.2s">session</span>
+        <span class="w" style="--d:1.23s">starts</span>
+        <span class="w" style="--d:1.26s">mid-thought,</span>
+        <span class="w" style="--d:1.29s">not</span>
+        <span class="w" style="--d:1.32s">from</span>
+        <span class="w" style="--d:1.35s">scratch.</span>
+      </p>
+      <div class="price">$12<span class="per">/month</span></div>
+      <div class="signup">
+        <form class="cta">
+          <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+          <button class="go" type="submit">Get early access</button>
+        </form>
+        <div class="form-done" hidden>Thanks — you're on the list.</div>
+      </div>
+    </main>
+
+    <div class="intro-tag" id="intro-tag">Where unfinished thinking lives</div>
+    <div class="scroll-hint" id="scroll-hint"><i></i>Scroll</div>
+  </div>
+</section>
+
+<!-- ══ ACT 2: Linear view ══ -->
+<section class="view-section" id="linear-sec" style="--k:#4CC9A0">
+  <div class="kicker reveal" style="--i:0">01 — Linear view</div>
+  <h2 class="reveal" style="--i:1">Write in a line.</h2>
+  <p class="lead reveal" style="--i:2">Draft on the left; the state of your argument on the right. Tag any span of text and it becomes a node that remembers what it is, what it complicates, and when you last touched it.</p>
+
+  <div class="panel reveal" style="--i:3" id="linear-panel">
+    <div class="pane draft-pane">
+      <div class="pane-head"><span>Draft</span><span>84 words</span></div>
+      <div class="draft-body">
+        <p>The argument keeps arriving at the same place: <mark class="mk-core">environment design beats discipline</mark>. Willpower is a spike; context is a slope. Change the room and the behavior follows without being asked.</p>
+        <p>The honest complication is that <mark class="mk-tension">novelty still wins sometimes</mark> — if friction alone worked, nobody would climb over three app deletions to doomscroll. So the claim needs a boundary, not a retraction.</p>
+        <p>Next session starts with the open question: <mark class="mk-open">what does a zero-willpower morning look like</mark>, concretely, hour by hour?<span class="caret"></span></p>
+      </div>
+      <div class="pane-foot"><span>3 linked spans</span><button class="save-pill" type="button">⊙ Save my place</button></div>
+    </div>
+    <div class="pane outline-pane">
+      <div class="pane-head"><span>Outline</span><span id="node-count">5 nodes</span></div>
+      <div class="session-marker">// current session</div>
+      <div class="sec-h">Core Ideas</div>
+      <div class="row" style="--ac:#4CC9A0">
+        <i class="bar"></i>
+        <div class="r1"><span class="dot"></span><span class="ttl">Environment design beats discipline</span></div>
+        <p class="dsc">The costliest behaviors sit one friction step from impossible.</p>
+        <div class="r3"><span class="typ">core idea</span><span class="sp"></span><span class="ts">2m ago</span></div>
+      </div>
+      <div class="row indent" style="--ac:#E06B5A">
+        <i class="bar"></i>
+        <div class="r1"><span class="dot"></span><span class="ttl">Novelty still wins sometimes</span></div>
+        <div class="r3"><span class="typ">tension</span><span class="cmp">complicates: Environment design beats discipline</span><span class="sp"></span><span class="ts">1h ago</span></div>
+      </div>
+      <div class="row" style="--ac:#4CC9A0">
+        <i class="bar"></i>
+        <div class="r1"><span class="dot"></span><span class="ttl">Attention is a finite budget</span></div>
+        <p class="dsc">Every open loop taxes the same pool — the tab, the unread reply.</p>
+        <div class="r3"><span class="typ">core idea</span><span class="sp"></span><span class="ts">1d ago</span></div>
+      </div>
+      <div class="sec-h">Open Thoughts</div>
+      <div id="open-rows">
+        <div class="row focusrow" style="--ac:#E8A84A">
+          <i class="bar"></i>
+          <div class="r1"><span class="dot"></span><span class="ttl">What does a zero-willpower morning look like?</span></div>
+          <div class="r3"><span class="typ">open thought · focus</span><span class="sp"></span><span class="ts">just now</span></div>
+        </div>
+      </div>
+      <div class="try-row">
+        <span class="try-dot"></span>
+        <input id="try-input" type="text" maxlength="60" placeholder="Add an open thought — type and press Enter" aria-label="Add an open thought">
+        <span class="try-hint">try it ↵</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ACT 3: Map view ══ -->
+<section class="view-section" id="map-sec" style="--k:#E8A84A">
+  <div class="kicker reveal" style="--i:0">02 — Map view</div>
+  <h2 class="reveal" style="--i:1">See it as a system.</h2>
+  <p class="lead reveal" style="--i:2">The same thread as a living map — clusters find each other, tensions stay visible as dashed lines, and the question you left open stays lit. Hover a node to see what it touches.</p>
+
+  <div class="tilt reveal" style="--i:3">
+    <div class="map-card" id="map-card">
+      <svg id="map-svg" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" aria-label="Map view of the example thread">
+        <!-- cluster halos -->
+        <path d="M 250 230 L 150 300 L 300 340 Z" fill="rgba(76,201,160,0.04)" stroke="rgba(76,201,160,0.05)" stroke-width="44" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>
+        <path d="M 560 170 L 660 250" fill="none" stroke="rgba(232,197,71,0.05)" stroke-width="44" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>
+        <!-- edges (drawn on scroll) -->
+        <path class="medge" data-e="n1,n2" d="M 250 230 Q 178 246 150 300" stroke="rgba(76,201,160,0.35)" stroke-width="1"/>
+        <path class="medge" data-e="n1,n3" d="M 250 230 Q 291 271 300 340" stroke="rgba(76,201,160,0.35)" stroke-width="1"/>
+        <path class="medge" data-e="n2,n3" d="M 150 300 Q 222 336 300 340" stroke="rgba(76,201,160,0.35)" stroke-width="1"/>
+        <path class="medge" data-e="n4,n5" d="M 560 170 Q 618 195 660 250" stroke="rgba(232,197,71,0.35)" stroke-width="1"/>
+        <path class="medge" data-e="n1,n4" d="M 250 230 Q 405 165 560 170" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+        <path class="medge" data-e="n6,n1" d="M 120 140 Q 180 175 250 230" stroke="rgba(224,107,90,0.55)" stroke-width="1" stroke-dasharray="5 4"/>
+        <path class="medge" data-e="n7,n1" d="M 480 380 Q 365 320 250 230" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+        <path class="medge" data-e="n7,n4" d="M 480 380 Q 525 275 560 170" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>
+        <!-- nodes -->
+        <g class="mnode" data-n="n1" transform="translate(250,230)" style="--pd:.05s">
+          <circle r="20" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="12" fill="#4CC9A0" filter="drop-shadow(0 0 8px rgba(76,201,160,0.4))"/>
+            <text x="18" y="0" dominant-baseline="central" font-size="13" font-weight="600" fill="#E8E6DC">Environment design beats discipline</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n2" transform="translate(150,300)" style="--pd:.15s">
+          <circle r="16" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="7" fill="#4CC9A0"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11" fill="#9A9893">Friction is a design material</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n3" transform="translate(300,340)" style="--pd:.22s">
+          <circle r="16" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="7" fill="#4CC9A0"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11" fill="#9A9893">Defaults do the heavy lifting</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n4" transform="translate(560,170)" style="--pd:.3s">
+          <circle r="18" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="10" fill="#E8C547" filter="drop-shadow(0 0 8px rgba(232,197,71,0.4))"/>
+            <text x="16" y="0" dominant-baseline="central" font-size="12" font-weight="600" fill="#E8E6DC">Attention is a finite budget</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n5" transform="translate(660,250)" style="--pd:.38s">
+          <circle r="16" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="7" fill="#E8C547"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11" fill="#9A9893">Open loops tax the same pool</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n6" transform="translate(120,140)" style="--pd:.46s">
+          <circle r="16" fill="transparent"/>
+          <g class="pop">
+            <circle class="body" r="7" fill="#E06B5A"/>
+            <text x="13" y="0" dominant-baseline="central" font-size="11" fill="#9A9893">Novelty still wins sometimes</text>
+          </g>
+        </g>
+        <g class="mnode" data-n="n7" transform="translate(480,380)" style="--pd:.54s">
+          <circle r="18" fill="transparent"/>
+          <g class="pop">
+            <circle class="focus-ring" r="14" fill="none" stroke="rgba(232,168,74,0.8)" stroke-width="1.5"/>
+            <circle class="body" r="8" fill="#E8A84A" filter="drop-shadow(0 0 12px rgba(232,168,74,0.35))"/>
+            <text x="16" y="0" dominant-baseline="central" font-size="12" font-weight="600" fill="#E8E6DC">What does a zero-willpower morning look like?</text>
+          </g>
+        </g>
+      </svg>
+      <div class="map-note">hover a node · your added thoughts land here too</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ACT 4: closing CTA ══ -->
+<section class="closing">
+  <h2 class="reveal" style="--i:0">Start where you left off.</h2>
+  <p class="lead reveal" style="--i:1">One place for the thinking between sessions.</p>
+  <div class="price reveal" style="--i:2">$12<span class="per">/month</span></div>
+  <div class="signup reveal" style="--i:3">
+    <form class="cta">
+      <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+      <button class="go" type="submit">Get early access</button>
+    </form>
+    <div class="form-done" hidden>Thanks — you're on the list.</div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var easeInOut = function (t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; };
+  var easeOut = function (t) { return 1 - Math.pow(1 - t, 3); };
+
+  var scene = document.getElementById('hero-scene');
+  var sun = document.getElementById('sun');
+  var anchor = document.getElementById('sun-anchor');
+  var system = document.getElementById('system');
+  var heroContent = document.getElementById('hero-content');
+  var introTag = document.getElementById('intro-tag');
+  var hint = document.getElementById('scroll-hint');
+  var progress = document.getElementById('progress');
+  var starsA = document.getElementById('starsA');
+  var starsB = document.getElementById('starsB');
+  var mapCard = document.getElementById('map-card');
+  var mapSvg = document.getElementById('map-svg');
+
+  /* ── Sun travel: measure home position via zero-size anchor ─────────── */
+  var dx = 0, dy = 0, needMeasure = true;
+  function measureSun() {
+    var r = anchor.getBoundingClientRect();
+    dx = innerWidth / 2 - r.left;
+    dy = innerHeight / 2 - r.top;
+    needMeasure = false;
+  }
+
+  /* ── Map edges: measure real path lengths for scroll-drawing ────────── */
+  var edges = Array.prototype.slice.call(mapSvg.querySelectorAll('.medge'));
+  edges.forEach(function (p) {
+    var len = p.getTotalLength();
+    p.dataset.len = len;
+    if (!reduced) {
+      p.style.strokeDasharray = p.getAttribute('stroke-dasharray')
+        ? p.getAttribute('stroke-dasharray') : String(len);
+      p.dataset.dashed = p.getAttribute('stroke-dasharray') === '5 4' ? '1' : '';
+      if (p.dataset.dashed) { p.style.strokeDasharray = ''; p.style.opacity = '0'; }
+      else p.style.strokeDashoffset = String(len);
+    }
+  });
+  var mapDrawn = false;
+
+  /* ── Scroll engine (rAF-throttled, transform/opacity only) ──────────── */
+  var ticking = false;
+  function frame() {
+    ticking = false;
+    var sy = scrollY, vh = innerHeight;
+    if (vh <= 0) return; /* degenerate viewport (hidden webview etc.) */
+
+    progress.style.transform = 'scaleX(' + clamp(sy / (document.documentElement.scrollHeight - vh), 0, 1) + ')';
+    starsA.style.transform = 'translateY(' + (-sy * 0.04) + 'px)';
+    starsB.style.transform = 'translateY(' + (-sy * 0.085) + 'px)';
+
+    if (reduced) return;
+
+    /* hero pin */
+    var total = scene.offsetHeight - vh;
+    var p = clamp(-scene.getBoundingClientRect().top / total, 0, 1);
+    if (needMeasure && p < 0.98) measureSun();
+    var e = easeInOut(clamp(p / 0.55, 0, 1));
+    sun.style.transform = 'translate(-50%,-50%) translate(' + dx * (1 - e) + 'px,' + dy * (1 - e) + 'px) scale(' + (1 + 3.4 * (1 - e)) + ')';
+    system.style.setProperty('--sysop', clamp((p - 0.30) / 0.22, 0, 1).toFixed(3));
+    system.style.setProperty('--labop', clamp((p - 0.48) / 0.18, 0, 1).toFixed(3));
+    introTag.style.opacity = clamp(1 - p / 0.12, 0, 1).toFixed(3);
+    hint.style.opacity = clamp(1 - p / 0.08, 0, 1).toFixed(3);
+    if (p > 0.62) heroContent.classList.add('in');
+
+    /* map edge drawing, scrubbed by viewport position */
+    var mr = mapCard.getBoundingClientRect();
+    var mp = easeOut(clamp((vh - mr.top) / (vh * 0.85), 0, 1));
+    edges.forEach(function (pth) {
+      if (pth.dataset.dashed) pth.style.opacity = String(mp);
+      else pth.style.strokeDashoffset = String(pth.dataset.len * (1 - mp));
+    });
+    if (mp > 0.25 && !mapDrawn) { mapDrawn = true; mapCard.classList.add('map-drawn'); }
+  }
+  /* Direct call with a ~1-frame timestamp throttle: immune to environments
+     that suppress rAF (occluded tabs, aggressive webviews). frame() only
+     writes transforms/opacity, so this stays cheap. */
+  var lastFrame = 0;
+  function onScroll() {
+    var now = Date.now();
+    if (now - lastFrame < 16) {
+      if (!ticking) { ticking = true; setTimeout(function () { ticking = false; frame(); }, 20); }
+      return;
+    }
+    lastFrame = now;
+    frame();
+  }
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', function () { needMeasure = true; onScroll(); }, { passive: true });
+
+  if (reduced) {
+    system.style.setProperty('--sysop', '1');
+    system.style.setProperty('--labop', '1');
+    heroContent.classList.add('in');
+    introTag.style.display = 'none';
+    hint.style.display = 'none';
+    sun.style.transform = 'translate(-50%,-50%)';
+    mapCard.classList.add('map-drawn');
+  }
+  frame();
+  /* fonts/layout settle → remeasure once */
+  addEventListener('load', function () { needMeasure = true; onScroll(); });
+
+  /* ── Section reveals ─────────────────────────────────────────────────── */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+    });
+  }, { rootMargin: '0px 0px -12% 0px' });
+  document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+
+  /* ── Ambient glow: throttled mousemove, transform only ──────────────── */
+  var glow = document.getElementById('glow'), lastGlow = 0;
+  addEventListener('mousemove', function (ev) {
+    var now = Date.now();
+    if (now - lastGlow < 40) return;
+    lastGlow = now;
+    glow.style.transform = 'translate3d(' + ev.clientX + 'px,' + ev.clientY + 'px,0) translate(-50%,-50%)';
+  }, { passive: true });
+
+  /* ── Map interactivity: hover adjacency + 3D tilt ────────────────────── */
+  var adj = {};
+  function addAdj(a, b) { (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); }
+  edges.forEach(function (p) { var e = p.dataset.e.split(','); addAdj(e[0], e[1]); });
+
+  function wireNode(g) {
+    g.addEventListener('mouseenter', function () {
+      var id = g.dataset.n;
+      mapSvg.classList.add('hovering');
+      mapSvg.querySelectorAll('.mnode').forEach(function (n) {
+        n.classList.toggle('hot', n.dataset.n === id || (adj[id] || []).indexOf(n.dataset.n) !== -1);
+      });
+      mapSvg.querySelectorAll('.medge').forEach(function (p) {
+        var e = p.dataset.e.split(',');
+        p.classList.toggle('hot', e[0] === id || e[1] === id);
+      });
+    });
+    g.addEventListener('mouseleave', function () {
+      mapSvg.classList.remove('hovering');
+      mapSvg.querySelectorAll('.hot').forEach(function (n) { n.classList.remove('hot'); });
+    });
+  }
+  mapSvg.querySelectorAll('.mnode').forEach(wireNode);
+
+  if (matchMedia('(hover:hover) and (pointer:fine)').matches && !reduced) {
+    var lastTilt = 0;
+    mapCard.addEventListener('mousemove', function (ev) {
+      var now = Date.now();
+      if (now - lastTilt < 40) return;
+      lastTilt = now;
+      var r = mapCard.getBoundingClientRect();
+      var rx = ((ev.clientY - r.top) / r.height - 0.5) * -4;
+      var ry = ((ev.clientX - r.left) / r.width - 0.5) * 5;
+      mapCard.style.transform = 'rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)';
+    });
+    mapCard.addEventListener('mouseleave', function () { mapCard.style.transform = ''; });
+  }
+
+  /* ── Try-it: typed thought lands in outline AND map ──────────────────── */
+  var tryInput = document.getElementById('try-input');
+  var openRows = document.getElementById('open-rows');
+  var nodeCount = document.getElementById('node-count');
+  var slots = [[580, 448], [380, 458], [620, 310]];
+  var addedCount = 0;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  tryInput.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Enter') return;
+    var text = tryInput.value.trim();
+    if (!text) return;
+    ev.preventDefault();
+
+    /* outline row */
+    var row = document.createElement('div');
+    row.className = 'row added';
+    row.style.setProperty('--ac', '#E8A84A');
+    var bar = document.createElement('i'); bar.className = 'bar';
+    var r1 = document.createElement('div'); r1.className = 'r1';
+    var dot = document.createElement('span'); dot.className = 'dot';
+    var ttl = document.createElement('span'); ttl.className = 'ttl'; ttl.textContent = text;
+    r1.appendChild(dot); r1.appendChild(ttl);
+    var r3 = document.createElement('div'); r3.className = 'r3';
+    var typ = document.createElement('span'); typ.className = 'typ'; typ.textContent = 'open thought';
+    var sp = document.createElement('span'); sp.className = 'sp';
+    var ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = 'just now';
+    r3.appendChild(typ); r3.appendChild(sp); r3.appendChild(ts);
+    row.appendChild(bar); row.appendChild(r1); row.appendChild(r3);
+    openRows.insertBefore(row, openRows.firstChild);
+    nodeCount.textContent = (parseInt(nodeCount.textContent, 10) + 1) + ' nodes';
+
+    /* map node + drawn edge from the focus node */
+    if (addedCount < slots.length) {
+      var pos = slots[addedCount];
+      var path = document.createElementNS(SVGNS, 'path');
+      path.setAttribute('class', 'medge');
+      path.setAttribute('data-e', 'n7,a' + addedCount);
+      var mx = (480 + pos[0]) / 2, my = (380 + pos[1]) / 2 - 18;
+      path.setAttribute('d', 'M 480 380 Q ' + mx + ' ' + my + ' ' + pos[0] + ' ' + pos[1]);
+      path.setAttribute('stroke', 'rgba(232,168,74,0.4)');
+      path.setAttribute('stroke-width', '1');
+      var firstNode = mapSvg.querySelector('.mnode');
+      mapSvg.insertBefore(path, firstNode);
+      var g = document.createElementNS(SVGNS, 'g');
+      g.setAttribute('class', 'mnode');
+      g.setAttribute('data-n', 'a' + addedCount);
+      g.setAttribute('transform', 'translate(' + pos[0] + ',' + pos[1] + ')');
+      var hit = document.createElementNS(SVGNS, 'circle');
+      hit.setAttribute('r', '16'); hit.setAttribute('fill', 'transparent');
+      var popg = document.createElementNS(SVGNS, 'g');
+      popg.setAttribute('class', 'pop');
+      var c = document.createElementNS(SVGNS, 'circle');
+      c.setAttribute('class', 'body'); c.setAttribute('r', '6.5'); c.setAttribute('fill', '#E8A84A');
+      var t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', '12'); t.setAttribute('y', '0');
+      t.setAttribute('dominant-baseline', 'central'); t.setAttribute('font-size', '11');
+      t.setAttribute('fill', '#9A9893');
+      t.textContent = text.length > 26 ? text.slice(0, 25).trimEnd() + '…' : text;
+      popg.appendChild(c); popg.appendChild(t);
+      g.appendChild(hit); g.appendChild(popg);
+      mapSvg.appendChild(g);
+      addAdj('n7', 'a' + addedCount);
+      wireNode(g);
+      edges.push(path);
+      var len = path.getTotalLength();
+      path.dataset.len = len;
+      if (!reduced) {
+        path.style.strokeDasharray = String(len);
+        path.style.strokeDashoffset = String(len);
+        popg.style.transition = 'transform .5s cubic-bezier(.2,.9,.3,1.2) .3s';
+        popg.style.transform = 'scale(0)';
+        popg.style.transformOrigin = 'center';
+        setTimeout(function () {
+          path.style.transition = 'stroke-dashoffset .7s ease-out';
+          path.style.strokeDashoffset = '0';
+          popg.style.transform = 'scale(1)';
+        }, 30);
+      }
+      addedCount++;
+      if (addedCount === slots.length) {
+        tryInput.placeholder = 'That’s the idea — the real thing holds as many as you need';
+      }
+    }
+    tryInput.value = '';
+  });
+
+  /* ── Email capture (front-end only in this standalone build) ─────────── */
+  document.querySelectorAll('form.cta').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      f.hidden = true;
+      f.parentElement.querySelector('.form-done').hidden = false;
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
