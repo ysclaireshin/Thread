@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { useStore } from '../store'
 import { ORGANIZER_META, type Organizer } from '../types'
+import { OrganizerIcon } from './organizerIcon'
 
 interface Props { onClose: () => void; prefillDescription?: string }
 
@@ -25,14 +26,16 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
 
   const orgDescriptions: Record<Organizer, string> = {
     core_idea: 'A settled claim, premise, or argument in your draft.',
-    point_of_tension: 'An unresolved objection or complication attached to a core idea.',
+    point_of_tension: 'An unresolved objection or complication attached to an idea.',
     open_thought: 'An active question or unsettled area still being worked out.',
   }
 
-  const confidenceLabels: Record<1 | 2 | 3, string> = {
-    1: 'Rough — might not capture this right',
-    2: 'Fine — haven\'t revisited',
-    3: 'Confirmed — I trust this',
+  // Progress levels (1 → 3): Raw, Refined, Done.
+  const progressLabels: Record<1 | 2 | 3, string> = { 1: 'Raw', 2: 'Refined', 3: 'Done' }
+  const progressHints: Record<1 | 2 | 3, string> = {
+    1: 'Just captured, still rough',
+    2: 'Worked on, not final',
+    3: 'Settled — I trust this',
   }
 
   function submit() {
@@ -135,6 +138,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                   }}
                 >
                   <span style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 'var(--text-11)',
                     fontWeight: 500,
@@ -142,7 +146,9 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                     whiteSpace: 'nowrap',
                     marginTop: '1px',
                     flexShrink: 0,
+                    minWidth: '78px',
                   }}>
+                    <OrganizerIcon organizer={o} size={14} color={organizer === o ? m.color : '#5C5B58'} />
                     {m.short}
                   </span>
                   <span style={{
@@ -193,9 +199,9 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
             />
           </div>
 
-          {/* Confidence */}
+          {/* Progress */}
           <div>
-            <span style={sectionLabel}>Confidence</span>
+            <span style={sectionLabel}>Progress</span>
             <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
               {([1, 2, 3] as const).map(v => (
                 <button
@@ -204,31 +210,32 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                   style={{
                     flex: 1, padding: 'var(--sp-2)',
                     borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${confidence === v ? 'var(--border)' : 'var(--border-subtle)'}`,
-                    background: confidence === v ? 'var(--surface-3)' : 'var(--surface-2)',
+                    border: `1px solid ${confidence === v ? 'var(--core)' : 'var(--border-subtle)'}`,
+                    background: confidence === v ? 'var(--core-dim)' : 'var(--surface-2)',
                     cursor: 'pointer',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 'var(--text-12)',
-                    color: confidence === v ? 'var(--text-secondary)' : 'var(--text-disabled)',
+                    fontWeight: 500,
+                    color: confidence === v ? 'var(--core)' : 'var(--text-disabled)',
                     transition: 'all var(--transition-fast)',
                   }}
-                  title={confidenceLabels[v]}
+                  title={progressHints[v]}
                 >
-                  {v}
+                  {progressLabels[v]}
                 </button>
               ))}
             </div>
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)', marginTop: 'var(--sp-1)' }}>
-              {confidenceLabels[confidence]}
+              {progressHints[confidence]}
             </p>
           </div>
 
-          {/* Centrality (not for open_thought) */}
+          {/* Priority (not for open_thought) */}
           {organizer !== 'open_thought' && (
             <div>
               <span style={sectionLabel}>
-                Centrality — {(centrality * 100).toFixed(0)}%
-                {centrality < 0.3 && <span style={{ color: 'var(--open)', marginLeft: '8px' }}>(renders as background star)</span>}
+                Priority — {(centrality * 100).toFixed(0)}%
+                {centrality < 0.3 && <span style={{ color: 'var(--open)', marginLeft: '8px' }}>(minor — small on the map)</span>}
               </span>
               <input
                 type="range" min="0.05" max="1" step="0.05"
@@ -236,10 +243,14 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                 onChange={e => setCentrality(parseFloat(e.target.value))}
                 style={{ width: '100%', accentColor: 'var(--core)' }}
               />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>minor</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>main</span>
+              </div>
             </div>
           )}
 
-          {/* Parent (tensions only) */}
+          {/* Parent (Problems only) */}
           {organizer === 'point_of_tension' && planets.length > 0 && (
             <div>
               <span style={sectionLabel}>Complicates (parent)</span>
@@ -248,7 +259,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                 value={parentId}
                 onChange={e => setParentId(e.target.value)}
               >
-                <option value="">— select core idea —</option>
+                <option value="">— select an idea —</option>
                 {planets.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </div>

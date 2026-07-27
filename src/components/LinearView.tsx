@@ -3,12 +3,14 @@ import { Link2, Crosshair } from 'lucide-react'
 import { InView } from './core/in-view'
 import { useStore } from '../store'
 import { ORGANIZER_META, type TextAnchor, type ThreadNode } from '../types'
+import { OrganizerIcon } from './organizerIcon'
 import { AddNodeModal } from './AddNodeModal'
 import { SidePanel } from './SidePanel'
 import { SavePlaceModal } from './SavePlaceModal'
 import { ReentryCard } from './ReentryCard'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
 import { runProbe, isNoneResponse } from '../lib/probe'
+import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 // A selection is Probe-eligible only when it is a meaningful run: at least 20
@@ -488,12 +490,9 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
           animation: isCurrentFocus ? 'pulse-accent 2s ease-in-out infinite' : 'none',
         }} />
 
-        {/* Line 1: dot · title */}
+        {/* Line 1: type icon · title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-1)' }}>
-          <span style={{
-            display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%',
-            background: meta.cssVar, flexShrink: 0,
-          }} />
+          <OrganizerIcon organizer={node.organizer} size={14} color={meta.color} />
           <span style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 'var(--text-15)',
@@ -799,8 +798,8 @@ export function LinearView() {
       const question = await runProbe({ context: 'linear_editor_selection', selectedText: sel.text })
       // NONE → neutral "no assumption found" state, not a manufactured question.
       setProbe(p => (p ? { ...p, status: isNoneResponse(question) ? 'none' : 'done', question } : p))
-    } catch {
-      setProbe(p => (p ? { ...p, status: 'error', errorMsg: "Couldn't reach the model. Try again." } : p))
+    } catch (err) {
+      setProbe(p => (p ? { ...p, status: 'error', errorMsg: explainAiError(err) } : p))
     }
   }
 

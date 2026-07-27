@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { ORGANIZER_META, type ThreadNode } from '../types'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
 import { runProbe, isNoneResponse } from '../lib/probe'
+import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 interface SidePanelProps {
@@ -45,9 +46,9 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
       if (useStore.getState().selectedId !== target.id) return
       // NONE → neutral "no assumption found" state, not a manufactured question.
       setProbe({ status: isNoneResponse(question) ? 'none' : 'done', question, errorMsg: null })
-    } catch {
+    } catch (err) {
       if (useStore.getState().selectedId !== target.id) return
-      setProbe({ status: 'error', question: '', errorMsg: "Couldn't reach the model. Try again." })
+      setProbe({ status: 'error', question: '', errorMsg: explainAiError(err) })
     }
   }
 

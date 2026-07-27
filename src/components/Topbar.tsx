@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
 import { greetingFromFocus } from '../types'
 import { ORGANIZER_META, type Organizer } from '../types'
+import { OrganizerIcon } from './organizerIcon'
 import { motion, AnimatePresence } from 'motion/react'
 import { AnimatedNumber } from './core/animated-number'
 import { TextShimmerWave } from './core/text-shimmer-wave'
@@ -231,12 +232,6 @@ function AddPopover() {
     reset()
   }
 
-  const organizerShort: Record<Organizer, string> = {
-    core_idea: 'Core idea',
-    point_of_tension: 'Tension',
-    open_thought: 'Open thought',
-  }
-
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -324,9 +319,11 @@ function AddPopover() {
                       textAlign: 'left',
                       cursor: 'pointer',
                       transition: 'all 150ms',
+                      display: 'flex', alignItems: 'center', gap: '8px',
                     }}
                   >
-                    {organizerShort[o]}
+                    <OrganizerIcon organizer={o} size={14} color={organizer === o ? meta.color : '#5C5B58'} />
+                    {meta.short}
                   </button>
                 )
               })}
@@ -338,7 +335,7 @@ function AddPopover() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="Name this idea..."
+              placeholder={`Name this ${ORGANIZER_META[organizer].short.toLowerCase()}...`}
               style={{
                 width: '100%',
                 fontFamily: 'var(--font-sans)',
@@ -442,7 +439,7 @@ export function Topbar({ reentryLoading = false }: Props) {
   const {
     nodes, edges, focusMode, setFocusMode, viewMode, setViewMode,
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
-    flowActive, flowIndicatorVisible,
+    setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -459,7 +456,21 @@ export function Topbar({ reentryLoading = false }: Props) {
   function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return
     const r = new FileReader()
-    r.onload = ev => importJSON(ev.target?.result as string)
+    r.onload = ev => {
+      const text = (ev.target?.result as string) ?? ''
+      // A Thread project export (.json) restores the whole project. Any other
+      // file — a .txt/.md document, or JSON that isn't a Thread project — loads
+      // its text straight into the draft so it actually shows up.
+      if (f.name.toLowerCase().endsWith('.json')) {
+        try {
+          const parsed = JSON.parse(text)
+          if (parsed && Array.isArray(parsed.nodes)) { importJSON(text); return }
+        } catch { /* not a project — fall through to draft import */ }
+      }
+      const current = useStore.getState().draftText
+      setDraftText(current.trim() ? `${current}\n\n${text}` : text)
+      setViewMode('linear') // make sure the draft is visible
+    }
     r.readAsText(f); e.target.value = ''
   }
 
@@ -607,7 +618,7 @@ export function Topbar({ reentryLoading = false }: Props) {
         <button onClick={() => fileRef.current?.click()} title="Import" style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>
           <Upload size={13} />
         </button>
-        <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        <input ref={fileRef} type="file" accept=".json,.txt,.md,.markdown,text/plain,text/markdown" style={{ display: 'none' }} onChange={handleImport} />
       </div>
 
       {/* ── Greeting band ───────────────────────────────────────── */}

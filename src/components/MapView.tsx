@@ -12,6 +12,7 @@ import { useStore } from '../store'
 import type { ThreadNode, Relationship } from '../types'
 import { SidePanel } from './SidePanel'
 import { runTraceScan, getScopedNodes, type TraceConnection } from '../lib/trace'
+import { explainAiError } from '../lib/aiError'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 
 // ─── Trace: Ghost Edge (client-side render model) ────────────────────────────
@@ -1686,7 +1687,9 @@ export function MapView() {
     } catch (err) {
       console.warn('Trace: scan failed', err)
       setGhostEdges([])
-      flashTraceMsg('Scan failed — try again.')
+      // Name the actual cause (auth / blocked provider / missing key / budget)
+      // instead of a generic failure the user can't act on.
+      flashTraceMsg(explainAiError(err))
     } finally {
       setScanStatus('idle')
     }
