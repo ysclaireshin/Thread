@@ -156,15 +156,17 @@ export function getScopedNodes(nodes: ThreadNode[], deep: boolean): ThreadNode[]
 //              open_thought, and any self-pair.
 // NOTE: the schema's tension value is 'point_of_tension', not the literal
 // 'tension' used in the prose spec (types.ts Organizer).
-function eligibleOrganizerPair(a: Organizer, b: Organizer): boolean {
-  const key = [a, b].sort().join('+')
-  const ELIGIBLE = new Set([
-    ['point_of_tension', 'core_idea'].sort().join('+'),
-    ['point_of_tension', 'point_of_tension'].sort().join('+'),
-    ['open_thought', 'core_idea'].sort().join('+'),
-    ['open_thought', 'point_of_tension'].sort().join('+'),
-  ])
-  return ELIGIBLE.has(key)
+function eligibleOrganizerPair(_a: Organizer, _b: Organizer): boolean {
+  // RELAXED (MVP): every organizer combination is now eligible, INCLUDING
+  // core_idea ↔ core_idea. The earlier version excluded core↔core (and
+  // open↔open) to pre-empt surface-similarity false positives — but in real use
+  // most nodes are core ideas, so that exclusion left core-heavy projects with
+  // ZERO pairs to compare and the scan always returned "nothing found". The
+  // model is already instructed to return only genuine connections and to reply
+  // with an empty array when nothing meets the bar, so it acts as the filter;
+  // the Accept/Dismiss gate is the human filter. Self-pairs, dismissed pairs,
+  // and already-connected pairs are still excluded in buildEligiblePairs.
+  return true
 }
 
 function pairIsDismissed(aId: string, bId: string, dismissedPairs: string[]): boolean {
@@ -205,12 +207,22 @@ function nodePayload(n: ThreadNode) {
   return { id: n.id, organizer: n.organizer, label: n.label, description: n.description ?? '' }
 }
 
-function buildUserMessage(scopedNodes: ThreadNode[], pairs: TracePair[]): string {
+// STRICT raises the bar per-call (appended to the user message, so the cached
+// system prompt is untouched). Used by the "Strong only" toggle to trade
+// coverage for precision — fewer, higher-confidence Ghost Edges.
+const STRICT_DIRECTIVE =
+  `\n\nSTRICT MODE: Return a connection ONLY if it is unmistakably strong — one node ` +
+  `directly challenges, resolves, or depends on the other, and a reader would immediately ` +
+  `agree. Reject anything merely related, thematic, or plausible. When in any doubt, return ` +
+  `an empty array. Prefer returning nothing over a weak connection.`
+
+function buildUserMessage(scopedNodes: ThreadNode[], pairs: TracePair[], strict = false): string {
   return (
     `Here are the nodes and pairs to evaluate:\n\n` +
     `NODES:\n${JSON.stringify(scopedNodes.map(nodePayload), null, 2)}\n\n` +
     `PAIRS TO EVALUATE:\n${JSON.stringify(pairs, null, 2)}\n\n` +
-    `Find the real connections. Return only what genuinely holds.`
+    `Find the real connections. Return only what genuinely holds.` +
+    (strict ? STRICT_DIRECTIVE : '')
   )
 }
 
@@ -290,13 +302,14 @@ interface RunTraceArgs {
   edges: ThreadEdge[]
   dismissedPairs: string[]
   deep: boolean
+  strict?: boolean
 }
 
 // Runs one scan. Returns 'empty' for every legitimate zero-result outcome (no
 // API call is made when there are no eligible pairs). Throws only on network /
 // HTTP failure so the caller can show the distinct error state.
 export async function runTraceScan(args: RunTraceArgs): Promise<TraceScanResult> {
-  const { nodes, edges, dismissedPairs, deep } = args
+  const { nodes, edges, dismissedPairs, deep, strict = false } = args
 
   const scopedNodes = getScopedNodes(nodes, deep)
   const pairs = buildEligiblePairs(scopedNodes, edges, dismissedPairs)
@@ -312,7 +325,7 @@ export async function runTraceScan(args: RunTraceArgs): Promise<TraceScanResult>
     max_tokens: TRACE_MAX_TOKENS,
     temperature: TRACE_TEMPERATURE,
     system: [{ type: 'text', text: TRACE_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: buildUserMessage(scopedNodes, pairs) }],
+    messages: [{ role: 'user', content: buildUserMessage(scopedNodes, pairs, strict) }],
   })
   if (!res.ok) throw new Error(`http-${res.status}`)
 

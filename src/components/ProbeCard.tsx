@@ -1,4 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { TextShimmerWave } from './core/text-shimmer-wave'
+
+// How long the neutral "No significant assumption found" line stays before it
+// auto-dismisses. Long enough to read, short enough not to linger over the draft.
+const NONE_AUTO_DISMISS_MS = 2800
 
 // ─── ProbeCard ───────────────────────────────────────────────────────────────
 // The inline result surface for a single Probe. Not a modal — it never blocks
@@ -21,6 +26,20 @@ interface ProbeCardProps {
 }
 
 export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: ProbeCardProps) {
+  // Keep the latest onDismiss without making it a timer dependency — otherwise an
+  // unrelated parent re-render during the window would restart the countdown.
+  const dismissRef = useRef(onDismiss)
+  dismissRef.current = onDismiss
+
+  // The neutral NONE state is informational only — auto-dismiss it once the user
+  // has had time to read it, so it never lingers over the draft. (Loading/done/
+  // error states are user-driven and stay until acted on.)
+  useEffect(() => {
+    if (status !== 'none') return
+    const t = setTimeout(() => dismissRef.current(), NONE_AUTO_DISMISS_MS)
+    return () => clearTimeout(t)
+  }, [status])
+
   if (status === 'loading') {
     // Shimmer sits in the exact spot the result will appear (inline, not modal).
     return (

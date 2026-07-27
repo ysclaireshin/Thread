@@ -363,21 +363,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function AIPlaceholder({ text }: { text: string }) {
-  return (
-    <div style={{
-      border: '1px dashed var(--border)',
-      borderRadius: '6px',
-      padding: '8px 10px',
-      fontFamily: 'var(--font-mono)',
-      fontSize: '10px',
-      lineHeight: 1.6,
-      color: 'var(--text-tertiary)',
-    }}>
-      <span style={{ color: 'var(--open)' }}>✦ AI</span> · {text}
-    </div>
-  )
-}
 
 function ClusterChip({ color, label }: { color: string; label: string }) {
   return (
@@ -575,8 +560,6 @@ function AnalyticsPanel({
                 </div>
               </div>
             )}
-
-            <AIPlaceholder text="Essence summary — will distill the main line of thinking from your draft as you write." />
           </>
         )}
 
@@ -655,8 +638,6 @@ function AnalyticsPanel({
                 </div>
               </div>
             )}
-
-            <AIPlaceholder text="Research question — will propose a question that links your two most distant clusters." />
           </>
         )}
 
@@ -695,8 +676,6 @@ function AnalyticsPanel({
                   : 'One dominant topic so far.'}
               </div>
             </div>
-
-            <AIPlaceholder text="Writing-progress analysis — will track how your draft and map evolve together across sessions." />
           </>
         )}
 
@@ -778,6 +757,9 @@ function GraphCanvas({
   const [pendingConnection, setPendingConnection] = useState<{ fromId: string; toId: string } | null>(null)
   // Trace: the Ghost Edge whose resolution popover is currently open (null = none).
   const [activeGhost, setActiveGhost] = useState<GhostEdge | null>(null)
+  // Connect mode: an explicit, discoverable alternative to Shift-click. When on,
+  // a plain click on two nodes links them (no modifier key required).
+  const [connectMode, setConnectMode] = useState(false)
 
   // Build connected sets for hover highlighting
   const connectedTo = useCallback((id: string): Set<string> => {
@@ -799,6 +781,7 @@ function GraphCanvas({
         setConnectingFrom(null)
         setCursorPos(null)
         setPendingConnection(null)
+        setConnectMode(false)
       }
     }
     const onKeyUp = (e: KeyboardEvent) => {
@@ -1021,8 +1004,8 @@ function GraphCanvas({
     // Relationship picker is open — ignore other node interactions until resolved
     if (pendingConnection) return
 
-    // Shift held: connection mode only, no drag
-    if (isShiftHeldRef.current || e.shiftKey) {
+    // Connect mode on, OR Shift held: connection flow only, no drag.
+    if (connectMode || isShiftHeldRef.current || e.shiftKey) {
       if (!connectingFrom) {
         setConnectingFrom(node.id)
         setCursorPos(toGraphCoords(e.clientX, e.clientY))
@@ -1319,7 +1302,7 @@ function GraphCanvas({
               style={{
                 opacity,
                 transition: 'opacity 0.35s ease',
-                cursor: connectingFrom && connectingFrom !== node.id ? 'crosshair' : 'pointer',
+                cursor: connectMode || (connectingFrom && connectingFrom !== node.id) ? 'crosshair' : 'pointer',
               }}
               onMouseEnter={() => setHoveredId(node.id)}
               onMouseLeave={() => setHoveredId(null)}
@@ -1370,8 +1353,37 @@ function GraphCanvas({
       </g>
     </svg>
 
-    {/* Connection-mode indicator — confirms the first Shift-click registered */}
-    {connectingFrom && (
+    {/* Connect-mode toggle — an explicit, discoverable way to link nodes without
+        the Shift key. Top-left, mirroring the Scan buttons at bottom-left. */}
+    <button
+      onClick={() => {
+        setConnectMode(m => {
+          const next = !m
+          if (!next) { setConnectingFrom(null); setCursorPos(null); setPendingConnection(null) }
+          return next
+        })
+      }}
+      className="trace-scan-btn"
+      style={{
+        position: 'absolute',
+        top: '12px',
+        left: '16px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '11px',
+        background: connectMode ? 'var(--open-dim)' : 'var(--surface-2)',
+        border: `1px solid ${connectMode ? 'var(--open)' : 'var(--border)'}`,
+        color: connectMode ? 'var(--open)' : 'var(--text-secondary)',
+        padding: '6px 14px',
+        borderRadius: '20px',
+        cursor: 'pointer',
+        zIndex: 41,
+      }}
+    >
+      {connectMode ? '✓ Connecting — click two nodes' : '+ Connect nodes'}
+    </button>
+
+    {/* Connection-mode indicator — shows guidance during Shift-click OR connect mode */}
+    {(connectingFrom || connectMode) && (
       <div
         style={{
           position: 'absolute',
@@ -1390,7 +1402,7 @@ function GraphCanvas({
           zIndex: 40,
         }}
       >
-        → Click a node to connect
+        {connectingFrom ? '→ Click a second node to link them' : 'Click a node, then another, to connect'}
       </div>
     )}
 
@@ -1568,6 +1580,9 @@ export function MapView() {
   const [ghostEdges, setGhostEdges] = useState<GhostEdge[]>([])
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning'>('idle')
   const [deepAvailable, setDeepAvailable] = useState(false)
+  // Strong-only mode: raises Trace's bar so it returns fewer, higher-confidence
+  // connections (trades coverage for precision). Persisted for the session.
+  const [strictMode, setStrictMode] = useState(false)
   const [traceMsg, setTraceMsg] = useState<string | null>(null)
   const traceMsgTimer = useRef<number | null>(null)
 
@@ -1655,7 +1670,7 @@ export function MapView() {
     setTraceMsg(null)
     setGhostEdges([])
     try {
-      const result = await runTraceScan({ nodes, edges, dismissedPairs, deep })
+      const result = await runTraceScan({ nodes, edges, dismissedPairs, deep, strict: strictMode })
       if (result.kind === 'empty') {
         setGhostEdges([])
         flashTraceMsg('No hidden connections found in this scope.')
@@ -1810,6 +1825,27 @@ export function MapView() {
                 Deep Scan
               </button>
             )}
+
+            {/* Strong-only toggle — raises Trace's bar (fewer, higher-confidence
+                connections). Off by default so scans surface plenty to react to. */}
+            <button
+              onClick={() => setStrictMode(m => !m)}
+              disabled={scanStatus === 'scanning'}
+              className="trace-scan-btn"
+              title="When on, Trace only suggests connections it's highly confident about."
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '11px',
+                background: strictMode ? 'var(--core-dim)' : 'var(--surface-2)',
+                border: `1px solid ${strictMode ? 'var(--core)' : 'var(--border)'}`,
+                color: strictMode ? 'var(--core)' : 'var(--text-tertiary)',
+                padding: '6px 14px',
+                borderRadius: '20px',
+                cursor: scanStatus === 'scanning' ? 'default' : 'pointer',
+              }}
+            >
+              {strictMode ? '✓ Strong only' : 'Strong only'}
+            </button>
 
             {/* Transient empty / error status — never a prompt to add content. */}
             {traceMsg && (

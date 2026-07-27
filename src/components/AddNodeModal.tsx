@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { useStore } from '../store'
 import { ORGANIZER_META, type Organizer } from '../types'
@@ -17,6 +17,9 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
   const [centrality, setCentrality] = useState(0.6)
   const [confidence, setConfidence] = useState<1 | 2 | 3>(2)
   const [parentId, setParentId] = useState('')
+  // Shows the "Label is required" hint after a submit attempt with an empty label.
+  const [showLabelHint, setShowLabelHint] = useState(false)
+  const labelRef = useRef<HTMLInputElement>(null)
 
   const planets = nodes.filter(n => n.organizer === 'core_idea' && n.centrality >= 0.3)
 
@@ -33,7 +36,13 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
   }
 
   function submit() {
-    if (!label.trim()) return
+    // Label is required (kept distinct from Notes on purpose). Instead of a
+    // silently dead button, guide the user: reveal the hint and focus the field.
+    if (!label.trim()) {
+      setShowLabelHint(true)
+      labelRef.current?.focus()
+      return
+    }
     const meta = ORGANIZER_META[organizer]
     addNode({
       id: `n-${Date.now()}`,
@@ -151,17 +160,23 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
 
           {/* Label */}
           <div>
-            <span style={sectionLabel}>Label</span>
+            <span style={sectionLabel}>Label <span style={{ color: 'var(--text-disabled)' }}>· required</span></span>
             <input
-              style={inputStyle}
+              ref={labelRef}
+              style={{ ...inputStyle, borderColor: showLabelHint ? 'var(--tension)' : 'var(--border)' }}
               value={label}
-              onChange={e => setLabel(e.target.value)}
+              onChange={e => { setLabel(e.target.value); if (showLabelHint) setShowLabelHint(false) }}
               placeholder="Short claim or question…"
               autoFocus
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submit()}
               onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'var(--core)'}
-              onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'var(--border)'}
+              onBlur={e => (e.target as HTMLInputElement).style.borderColor = showLabelHint ? 'var(--tension)' : 'var(--border)'}
             />
+            {showLabelHint && (
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--tension)', marginTop: 'var(--sp-1)' }}>
+                Give it a short label to add — your Notes stay separate.
+              </p>
+            )}
           </div>
 
           {/* Notes */}
@@ -255,15 +270,14 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
           </button>
           <button
             onClick={submit}
-            disabled={!label.trim()}
             style={{
               background: label.trim() ? 'var(--core-mid)' : 'var(--surface-2)',
               border: `1px solid ${label.trim() ? 'var(--core)' : 'var(--border)'}`,
-              color: label.trim() ? 'var(--core)' : 'var(--text-disabled)',
+              color: label.trim() ? 'var(--core)' : 'var(--text-secondary)',
               borderRadius: 'var(--radius-md)',
               fontFamily: 'var(--font-mono)', fontSize: 'var(--text-11)', fontWeight: 500,
               padding: 'var(--sp-2) var(--sp-3)',
-              cursor: label.trim() ? 'pointer' : 'default',
+              cursor: 'pointer',
               letterSpacing: '0.03em',
               transition: 'all var(--transition-fast)',
             }}
