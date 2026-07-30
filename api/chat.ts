@@ -17,7 +17,7 @@
 
 import {
   type Req, type Res, send, bodyTooLarge, clampMaxTokens, authorizeAndMeter,
-} from './_shared'
+} from './_shared.js'
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 // The model the client sends in the request body is ignored on purpose — the

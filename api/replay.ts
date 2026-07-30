@@ -12,7 +12,7 @@
 
 import {
   type Req, type Res, send, bodyTooLarge, clampMaxTokens, authorizeAndMeter,
-} from './_shared'
+} from './_shared.js'
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 // Pinned server-side. The client sends a `model` field, but it is IGNORED:
