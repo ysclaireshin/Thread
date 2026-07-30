@@ -2,15 +2,15 @@
 // A single daily budget shared across every AI call site in the app (Probe +
 // Flow's Replay). Enforced client-side in localStorage.
 //
-// NOTE ON "per user": this app has no authentication — all state lives in
-// localStorage, one bucket per browser — so the cap is enforced per device,
+// NOTE ON "per user": this app has no authentication - all state lives in
+// localStorage, one bucket per browser - so the cap is enforced per device,
 // not per account. If real auth is added later, key this by user id instead.
 // 50/day comfortably covers deliberate, human-paced use of two rarely-fired
 // features while capping runaway/automated usage.
 
 const KEY = 'thread_ai_usage'
 export const AI_DAILY_LIMIT = 50
-export const AI_LIMIT_MESSAGE = 'Daily limit reached — resets tomorrow'
+export const AI_LIMIT_MESSAGE = 'Daily limit reached - resets tomorrow'
 
 interface Usage { date: string; count: number }
 
@@ -33,7 +33,7 @@ function read(): Usage {
 
 // Atomically check the daily cap and, if under it, record one call. Returns
 // true if the call is permitted (and was just counted), false if the daily
-// limit is already reached. Only AI calls consult this — no other feature does,
+// limit is already reached. Only AI calls consult this - no other feature does,
 // so hitting the cap never blocks the rest of the app.
 export function tryConsumeAiCall(): boolean {
   const u = read()

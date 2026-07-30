@@ -11,7 +11,7 @@ import { TextShimmerWave } from './core/text-shimmer-wave'
 
 interface Props { onAddNode: () => void; reentryLoading?: boolean }
 
-// ─── Thread logo — design E: liquid hue wave ─────────────────────────────────
+// ─── Thread logo - design E: liquid hue wave ─────────────────────────────────
 
 function ThreadLogo() {
   return (
@@ -459,13 +459,13 @@ export function Topbar({ reentryLoading = false }: Props) {
     r.onload = ev => {
       const text = (ev.target?.result as string) ?? ''
       // A Thread project export (.json) restores the whole project. Any other
-      // file — a .txt/.md document, or JSON that isn't a Thread project — loads
+      // file - a .txt/.md document, or JSON that isn't a Thread project - loads
       // its text straight into the draft so it actually shows up.
       if (f.name.toLowerCase().endsWith('.json')) {
         try {
           const parsed = JSON.parse(text)
           if (parsed && Array.isArray(parsed.nodes)) { importJSON(text); return }
-        } catch { /* not a project — fall through to draft import */ }
+        } catch { /* not a project - fall through to draft import */ }
       }
       const current = useStore.getState().draftText
       setDraftText(current.trim() ? `${current}\n\n${text}` : text)
@@ -511,7 +511,7 @@ export function Topbar({ reentryLoading = false }: Props) {
 
         <ProjectSwitcher />
 
-        {/* Flow status indicator — confirms Flow activated on this load, then
+        {/* Flow status indicator - confirms Flow activated on this load, then
             fades. Not a button; purely a signal that the tool did something. */}
         {flowActive && (
           <span style={{

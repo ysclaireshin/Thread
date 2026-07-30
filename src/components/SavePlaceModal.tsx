@@ -12,7 +12,7 @@ export function SavePlaceModal({ onClose }: Props) {
 
   function finish() {
     // Store the user's exact sentence as the Flow commitment before the session
-    // counter advances — Flow reads it back verbatim on next load.
+    // counter advances - Flow reads it back verbatim on next load.
     saveFocusCommitment(input)
     commitSession()
     onClose()
@@ -70,7 +70,7 @@ export function SavePlaceModal({ onClose }: Props) {
 
         {step === 'pick' && (
           <div style={{ padding: 'var(--sp-5)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-tertiary)' }}>This might already exist — link to one, or create new:</p>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-tertiary)' }}>This might already exist - link to one, or create new:</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-1)' }}>
               {matches.map(n => (
                 <button key={n.id} onClick={() => pickExisting(n.id)} style={{ textAlign: 'left', padding: 'var(--sp-2) var(--sp-3)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface-2)', cursor: 'pointer' }}>

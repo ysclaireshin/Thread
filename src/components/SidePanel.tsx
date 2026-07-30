@@ -29,7 +29,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
     const target = useStore.getState().nodes.find(n => n.id === useStore.getState().selectedId)
     if (!target) return
     if (probe?.status === 'loading') return
-    // Shared daily AI cap — surface the plain message inline, no API call.
+    // Shared daily AI cap - surface the plain message inline, no API call.
     if (!tryConsumeAiCall()) {
       setProbe({ status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
       return
@@ -55,7 +55,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
   function handleSpawnFromProbe() {
     if (!probe || probe.status !== 'done') return
     const id = `probe-${Date.now()}`
-    // Node context: no tether, no automatic edge (Probe Part 4 — in Map view the
+    // Node context: no tether, no automatic edge (Probe Part 4 - in Map view the
     // spawned node enters the simulation and the user decides what to connect it
     // to). provenance is ai_proposed_confirmed, NOT 'human'.
     addNode({
@@ -73,7 +73,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
     setProbe(null)
   }
 
-  // Cmd+Shift+A fires the node Probe while a node is selected — but yields to an
+  // Cmd+Shift+A fires the node Probe while a node is selected - but yields to an
   // active text selection (the LinearView text surface owns that case).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -238,7 +238,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
 
         {/* ── Probe ─────────────────────────────────────────────── */}
         {/* One targeted question about this node's core assumption. Fires only on
-            an explicit click (or Cmd+Shift+A) — never automatically. */}
+            an explicit click (or Cmd+Shift+A) - never automatically. */}
         <div style={sectionDivider}>
           {!probe ? (
             <button
@@ -466,7 +466,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
               }}
             >
               <CheckCircle size={11} />
-              Resolve — move to archive
+              Resolve - move to archive
             </button>
           ) : (
             <div>

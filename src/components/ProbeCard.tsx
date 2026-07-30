@@ -6,7 +6,7 @@ import { TextShimmerWave } from './core/text-shimmer-wave'
 const NONE_AUTO_DISMISS_MS = 2800
 
 // ─── ProbeCard ───────────────────────────────────────────────────────────────
-// The inline result surface for a single Probe. Not a modal — it never blocks
+// The inline result surface for a single Probe. Not a modal - it never blocks
 // other interaction; the user can ignore it and keep working until they Spawn or
 // dismiss. Shared by both trigger surfaces (text selection + node selection) so
 // the styling stays identical. Styling follows Probe Part 3 verbatim.
@@ -26,12 +26,12 @@ interface ProbeCardProps {
 }
 
 export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: ProbeCardProps) {
-  // Keep the latest onDismiss without making it a timer dependency — otherwise an
+  // Keep the latest onDismiss without making it a timer dependency - otherwise an
   // unrelated parent re-render during the window would restart the countdown.
   const dismissRef = useRef(onDismiss)
   dismissRef.current = onDismiss
 
-  // The neutral NONE state is informational only — auto-dismiss it once the user
+  // The neutral NONE state is informational only - auto-dismiss it once the user
   // has had time to read it, so it never lingers over the draft. (Loading/done/
   // error states are user-driven and stay until acted on.)
   useEffect(() => {
@@ -56,7 +56,7 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
 
   if (status === 'none') {
     // The model judged the selection sound/trivial and returned NONE. Show a
-    // brief neutral line — deliberately NOT the coral result card — so an empty
+    // brief neutral line - deliberately NOT the coral result card - so an empty
     // finding reads as a correct outcome, not a failure or a false positive.
     return (
       <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -87,7 +87,7 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
         marginTop: '8px',
       }}
     >
-      {/* Row 1 — label */}
+      {/* Row 1 - label */}
       <div style={{
         fontFamily: 'var(--font-mono)',
         fontSize: '10px',
@@ -126,7 +126,7 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
         </>
       ) : (
         <>
-          {/* Row 2 — the AI-returned question, verbatim */}
+          {/* Row 2 - the AI-returned question, verbatim */}
           <p style={{
             fontFamily: 'var(--font-sans)',
             fontSize: '13px',
@@ -137,7 +137,7 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
             {question}
           </p>
 
-          {/* Row 3 — action */}
+          {/* Row 3 - action */}
           <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px' }}>
             <button
               onClick={onSpawn}

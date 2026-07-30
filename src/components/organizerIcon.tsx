@@ -2,7 +2,7 @@ import { Lightbulb, AlertTriangle, HelpCircle, type LucideIcon } from 'lucide-re
 import type { Organizer } from '../types'
 
 // Icon per organizer type, matching the Idea / Problem / Question naming.
-// Stored organizer values are unchanged — this is display only.
+// Stored organizer values are unchanged - this is display only.
 export const ORGANIZER_ICON: Record<Organizer, LucideIcon> = {
   core_idea: Lightbulb,      // Idea
   point_of_tension: AlertTriangle, // Problem

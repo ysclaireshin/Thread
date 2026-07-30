@@ -24,7 +24,7 @@ function migrateNode(n: any): ThreadNode {
 function migrateEdge(e: any): ThreadEdge {
   return {
     ...e,
-    // 'manual' was removed from the relationship union — it was standing in for
+    // 'manual' was removed from the relationship union - it was standing in for
     // provenance, which now has its own field. Old persisted edges carrying it
     // become unclassified (null) rather than throwing or getting dropped.
     relationship: (e.relationship === 'manual' ? null : e.relationship ?? null) as ThreadEdge['relationship'],
@@ -342,13 +342,13 @@ export const useStore = create<Store>((set, get) => {
     saveFocusCommitment: (sentence) => set(s => ({
       focusCommitment: sentence.trim() || undefined,
       focusCommitmentSession: s.currentSession,
-      // Snapshot the draft as it stood at Save My Place — last ~200 words only.
+      // Snapshot the draft as it stood at Save My Place - last ~200 words only.
       focusDraftSnapshot: s.draftText.split(/\s+/).filter(Boolean).slice(-200).join(' '),
     })),
 
     // Runs once per project load (effect keyed on projectId). Glows the 2–3
     // most-recently-edited nodes from the previous session and lights the
-    // ▶ Flow indicator — only when a previous session actually exists.
+    // ▶ Flow indicator - only when a previous session actually exists.
     activateFlow: () => set(s => {
       const hasPrevious = s.currentSession > 1
       if (!hasPrevious) {
@@ -390,7 +390,7 @@ export const useStore = create<Store>((set, get) => {
         createdWithFocus: newNode.createdWithFocus,
       })
       const updatedNodes = [...s.nodes, newNode]
-      // No cloud write here — the store-wide subscribe below persists every
+      // No cloud write here - the store-wide subscribe below persists every
       // change (debounced) with the COMPLETE project. Saving a partial project
       // here as well caused double writes and dropped fields.
       return { nodes: updatedNodes }
@@ -422,7 +422,7 @@ export const useStore = create<Store>((set, get) => {
     addTextAnchor: (a) => set(s => ({ textAnchors: [...s.textAnchors, a] })),
     removeTextAnchor: (id) => set(s => ({ textAnchors: s.textAnchors.filter(a => a.id !== id) })),
 
-    // Increment the session counter — called at end of "Save my place"
+    // Increment the session counter - called at end of "Save my place"
     commitSession: () => set(s => ({ currentSession: s.currentSession + 1 })),
 
     exportJSON: () => {
@@ -491,7 +491,7 @@ function extractProject(s: Store): ThreadProject {
 useStore.subscribe((s) => {
   // localStorage stays the synchronous source of truth (instant, offline-safe).
   saveAll(s)
-  // Cloud write is debounced inside saveProject — safe to call on every change.
+  // Cloud write is debounced inside saveProject - safe to call on every change.
   // extractProject sends the COMPLETE project (edges, textAnchors, draftText,
   // dismissedPairs, greeting/focus/cursor state), not the partial subset the
   // previous version sent.
@@ -512,7 +512,7 @@ if (typeof window !== 'undefined') {
 // configured, so local-only behaviour is unchanged.
 export async function hydrateFromCloud(): Promise<void> {
   const cloud = await loadProjects()
-  if (!cloud) return // sync unavailable — stay local
+  if (!cloud) return // sync unavailable - stay local
 
   const state = useStore.getState()
 

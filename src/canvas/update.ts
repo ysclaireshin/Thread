@@ -54,7 +54,7 @@ export function initAnimState(
     }
   }
 
-  // Moon rings — group by parent
+  // Moon rings - group by parent
   const byParent: Record<string, string[]> = {}
   for (const m of moons) {
     const pid = getMoonParentId(m.id, nodes, edges) ?? 'none'
@@ -152,7 +152,7 @@ export function getFocusWorldPos(
   const rs = renderStates[focus.id]
   if (rs === 'planet') return getPlanetPos(focus, anim)
   if (rs === 'comet') return getCometPos(focus.id, anim)
-  // asteroid / moon — use planet pos as proxy for initial camera
+  // asteroid / moon - use planet pos as proxy for initial camera
   if (rs === 'asteroid' && focus.parent_id) {
     const parent = nodes.find(n => n.id === focus.parent_id)
     if (parent) return getPlanetPos(parent, anim)

@@ -23,7 +23,7 @@ type GhostEdge = TraceConnection
 
 // Trace never fires on its own. It is wired to exactly two button clicks
 // (handleScan / handleDeepScan). No effect, no timer, no subscription triggers
-// it — not page load, session change, node creation, or tab switch.
+// it - not page load, session change, node creation, or tab switch.
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ interface GraphLink extends SimulationLinkDatum<GraphNode> {
   relationship: Relationship | null
 }
 
-// Flow re-entry glow for Map view — organizer color at 40% for the text-shadow.
+// Flow re-entry glow for Map view - organizer color at 40% for the text-shadow.
 const FLOW_GLOW_SHADOW: Record<ThreadNode['organizer'], string> = {
   core_idea: 'rgba(76, 201, 160, 0.4)',
   point_of_tension: 'rgba(224, 107, 90, 0.4)',
@@ -49,7 +49,7 @@ const FLOW_GLOW_SHADOW: Record<ThreadNode['organizer'], string> = {
 
 // Relationships exposed in the connect picker today. depends_on / supersedes
 // exist in the type and are handled fine if present in data, but are
-// available-but-unshipped — no UI offers them yet (open product decision).
+// available-but-unshipped - no UI offers them yet (open product decision).
 type PickableRelationship = 'supports' | 'challenges'
 
 // ─── Cluster palette ───────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ function hexToRgba(hex: string, alpha: number): string {
 const linkEndpointId = (v: string | number | GraphNode): string =>
   typeof v === 'object' ? v.id : String(v)
 
-// Node radius scales with connection count — hubs read as gravity wells.
+// Node radius scales with connection count - hubs read as gravity wells.
 function nodeRadius(degree: number): number {
   return Math.min(4.5 + Math.sqrt(degree) * 2.5, 14)
 }
@@ -102,7 +102,7 @@ function recencyOpacity(sessionId: number, currentSession: number): number {
   return 0.3
 }
 
-// ─── Graph analysis (no AI — pure structure) ───────────────────────────────────
+// ─── Graph analysis (no AI - pure structure) ───────────────────────────────────
 
 function buildAdjacency(nodes: GraphNode[], links: GraphLink[]): Map<string, string[]> {
   const adjacency = new Map<string, string[]>()
@@ -118,7 +118,7 @@ function buildAdjacency(nodes: GraphNode[], links: GraphLink[]): Map<string, str
   return adjacency
 }
 
-// Connected components — used for structural gap detection.
+// Connected components - used for structural gap detection.
 function findComponents(nodes: GraphNode[], adjacency: Map<string, string[]>): GraphNode[][] {
   const byId = new Map(nodes.map(n => [n.id, n]))
   const visited = new Set<string>()
@@ -139,7 +139,7 @@ function findComponents(nodes: GraphNode[], adjacency: Map<string, string[]>): G
   return components
 }
 
-// Label propagation — lightweight community detection. Each node repeatedly
+// Label propagation - lightweight community detection. Each node repeatedly
 // adopts the most common label among its neighbors; ties keep the current
 // label so results are deterministic on small graphs.
 function detectCommunities(nodes: GraphNode[], adjacency: Map<string, string[]>): Map<string, string> {
@@ -244,7 +244,7 @@ function computeAnalytics(nodes: GraphNode[], links: GraphLink[], currentSession
   }
 
   // Latent brokers: nodes whose neighbors aren't directly connected to each
-  // other — remove the broker and those ideas fall apart. Score = number of
+  // other - remove the broker and those ideas fall apart. Score = number of
   // neighbor pairs bridged only through this node.
   const edgeSet = new Set<string>()
   links.forEach(l => {
@@ -268,7 +268,7 @@ function computeAnalytics(nodes: GraphNode[], links: GraphLink[], currentSession
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)
 
-  // Action advice — rule-based on structure
+  // Action advice - rule-based on structure
   const totalDegree = [...degree.values()].reduce((s, d) => s + d, 0)
   const avgDegree = nodes.length ? totalDegree / nodes.length : 0
   const density = nodes.length > 1 ? links.length / ((nodes.length * (nodes.length - 1)) / 2) : 0
@@ -280,27 +280,27 @@ function computeAnalytics(nodes: GraphNode[], links: GraphLink[], currentSession
   if (gaps.length > 0) {
     advice = {
       title: 'Bridge the Gap',
-      detail: 'Your thinking has separate idea groups with no path between them. Connecting them often produces the newest ideas — or leave the gap if it\'s intentional.',
+      detail: 'There is a lack of connection between your ideas. You have separate groups of thoughts that should have a logical bridge between them.',
     }
   } else if (isolated.length >= 3) {
     advice = {
       title: 'Integrate Loose Thoughts',
-      detail: `${isolated.length} ideas aren't connected to anything yet. Link them in, or let them go.`,
+      detail: `${isolated.length} ideas aren't connected to anything yet. Link them in to your ideas, or remove them.`,
     }
   } else if (biggestShare > 0.7) {
     advice = {
       title: 'Develop Periphery',
-      detail: 'Most of your ideas sit in one cluster. Push on the edges — the periphery is where the thinking is still open.',
+      detail: 'Most of your ideas sit in one cluster. Push outward, where more innovative thoughts lie.',
     }
   } else if (links.length < nodes.length - 1) {
     advice = {
       title: 'Connect Related Ideas',
-      detail: 'The map is sparse. Shift-click pairs of nodes that belong together to reveal the structure of your thinking.',
+      detail: "The map is fragmented. Click 'Connect' to link ideas that belong together to visualize your thinking.",
     }
   } else {
     advice = {
       title: 'Keep Developing',
-      detail: 'The structure is balanced — connected but not collapsed into one blob. Keep writing.',
+      detail: 'The structure is balanced, connected but not collapsed into one blob. Keep writing.',
     }
   }
 
@@ -514,10 +514,10 @@ function AnalyticsPanel({
         {tab === 'essence' && (
           <>
             <div>
-              <SectionLabel>Main topics</SectionLabel>
+              <SectionLabel>Main Ideas</SectionLabel>
               {a.communities.length === 0 && (
                 <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                  No clusters yet — connect ideas and topics will emerge here.
+                  No connections yet. Connect ideas, and topics will emerge here.
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -537,7 +537,7 @@ function AnalyticsPanel({
 
             {a.topNodes.length > 0 && (
               <div>
-                <SectionLabel>Most influential ideas</SectionLabel>
+                <SectionLabel>High-impact ideas</SectionLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {a.topNodes.map(n => (
                     <div
@@ -590,7 +590,7 @@ function AnalyticsPanel({
               <SectionLabel>Structural gaps</SectionLabel>
               {a.gaps.length === 0 ? (
                 <div style={{ color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                  No gaps — every idea group is reachable from every other.
+                  Your ideas have a strong balance and connections. Keep building.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -602,7 +602,7 @@ function AnalyticsPanel({
                         {componentChips(gb)}
                       </div>
                       <div style={{ color: 'var(--text-tertiary)', fontSize: '10px', fontFamily: 'var(--font-mono)', lineHeight: 1.5 }}>
-                        Shift-click between these to connect them, or leave the gap if it's intentional.
+                        Click 'Connect' to link these, or leave the gap if it's intentional.
                       </div>
                     </div>
                   ))}
@@ -612,7 +612,7 @@ function AnalyticsPanel({
 
             {a.brokers.length > 0 && (
               <div>
-                <SectionLabel>Latent topical brokers</SectionLabel>
+                <SectionLabel>Latent Notes</SectionLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {a.brokers.map(b => (
                     <div
@@ -635,7 +635,7 @@ function AnalyticsPanel({
                   ))}
                 </div>
                 <div style={{ color: 'var(--text-tertiary)', fontSize: '10px', marginTop: '4px', lineHeight: 1.5 }}>
-                  Ideas holding otherwise-unlinked thoughts together.
+                  Core ideas holding separate parts of your thinking together.
                 </div>
               </div>
             )}
@@ -670,8 +670,8 @@ function AnalyticsPanel({
               <SectionLabel>Structure over time</SectionLabel>
               <div style={{ lineHeight: 1.55, color: 'var(--text-secondary)' }}>
                 {a.isolated.length > 0
-                  ? `${a.isolated.length} idea${a.isolated.length === 1 ? '' : 's'} still floating free. `
-                  : 'Every idea is anchored to at least one other. '}
+                  ? `${a.isolated.length} thought${a.isolated.length === 1 ? '' : 's'} still unattached. `
+                  : 'Every thought is anchored to a broader structure. '}
                 {a.communities.length >= 2
                   ? `Thinking currently splits into ${a.communities.length} topics.`
                   : 'One dominant topic so far.'}
@@ -687,11 +687,11 @@ function AnalyticsPanel({
               {[
                 ['ideas', String(nodeCount)],
                 ['connections', String(edgeCount)],
-                ['topics', String(a.communities.length)],
+                ['Main Topics', String(a.communities.length)],
                 ['loose thoughts', String(a.isolated.length)],
-                ['avg connections', a.avgDegree.toFixed(1)],
+                ['links per thought', a.avgDegree.toFixed(1)],
                 ['density', `${Math.round(a.density * 100)}%`],
-                ['session', String(currentSession)],
+                ['session history', String(currentSession)],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-tertiary)' }}>{k}</span>
@@ -821,7 +821,7 @@ function GraphCanvas({
       target: simNodes.find(n => n.id === linkEndpointId(l.target))!,
     })).filter(l => l.source && l.target)
 
-    // Degree from this link set — sizes collision to match rendered radii
+    // Degree from this link set - sizes collision to match rendered radii
     const degreeLocal = new Map<string, number>()
     simLinks.forEach(l => {
       const s = (l.source as GraphNode).id
@@ -899,7 +899,7 @@ function GraphCanvas({
   const onMouseDownCanvas = (e: React.MouseEvent<SVGSVGElement>) => {
     if ((e.target as Element).closest?.('[data-node]')) return
     if (pendingConnection) {
-      // Click on background cancels the pending relationship pick — no edge created
+      // Click on background cancels the pending relationship pick - no edge created
       setPendingConnection(null)
       return
     }
@@ -1002,7 +1002,7 @@ function GraphCanvas({
   const handleNodeMouseDown = (e: React.MouseEvent, node: GraphNode) => {
     e.stopPropagation()
 
-    // Relationship picker is open — ignore other node interactions until resolved
+    // Relationship picker is open - ignore other node interactions until resolved
     if (pendingConnection) return
 
     // Connect mode on, OR Shift held: connection flow only, no drag.
@@ -1015,11 +1015,11 @@ function GraphCanvas({
         setConnectingFrom(null)
         setCursorPos(null)
       } else if (isAlreadyConnected(connectingFrom, node.id)) {
-        // Nothing to pick a relationship for — cancel, matching prior no-op behavior
+        // Nothing to pick a relationship for - cancel, matching prior no-op behavior
         setConnectingFrom(null)
         setCursorPos(null)
       } else {
-        // Don't create the edge yet — show the relationship picker first
+        // Don't create the edge yet - show the relationship picker first
         setPendingConnection({ fromId: connectingFrom, toId: node.id })
         setConnectingFrom(null)
         setCursorPos(null)
@@ -1123,7 +1123,7 @@ function GraphCanvas({
         transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}
         style={resetTransition ? { transition: 'transform 300ms ease' } : undefined}
       >
-        {/* Cluster halos — under everything */}
+        {/* Cluster halos - under everything */}
         {hulls.map(h => (
           <path
             key={h.id}
@@ -1137,11 +1137,11 @@ function GraphCanvas({
           />
         ))}
 
-        {/* Trace Ghost Edges — same SVG <g>, rendered BEFORE confirmed edges so
+        {/* Trace Ghost Edges - same SVG <g>, rendered BEFORE confirmed edges so
             they sit BELOW them in z-order (a confirmed edge always wins on
             overlap). Same quadratic-Bezier control-point math as confirmed
             edges (perpendicular offset = dist * 0.18); only stroke styling
-            differs — desaturated, dashed, softly pulsing. */}
+            differs - desaturated, dashed, softly pulsing. */}
         {ghostEdges.map(ghost => {
           const posA = positions.get(ghost.source_id)
           const posB = positions.get(ghost.target_id)
@@ -1161,7 +1161,7 @@ function GraphCanvas({
 
           return (
             <g key={key}>
-              {/* Wide, invisible hit path — gives ~4px click tolerance. */}
+              {/* Wide, invisible hit path - gives ~4px click tolerance. */}
               <path
                 d={d}
                 stroke="transparent"
@@ -1187,7 +1187,7 @@ function GraphCanvas({
           )
         })}
 
-        {/* Edges — under nodes */}
+        {/* Edges - under nodes */}
         {links.map(link => {
           const src = linkEndpointId(link.source)
           const tgt = linkEndpointId(link.target)
@@ -1219,7 +1219,7 @@ function GraphCanvas({
           const isHighlighted = hoveredId && (src === hoveredId || tgt === hoveredId)
           const isDimmed = hoveredId && !isHighlighted
 
-          // Same-cluster edges carry the cluster color; bridges stay neutral —
+          // Same-cluster edges carry the cluster color; bridges stay neutral -
           // the map reads as colored regions joined by gray connective tissue.
           const colorA = analytics.colorOf.get(src) ?? UNCLUSTERED_COLOR
           const colorB = analytics.colorOf.get(tgt) ?? UNCLUSTERED_COLOR
@@ -1263,7 +1263,7 @@ function GraphCanvas({
           />
         )}
 
-        {/* Nodes — dots sized by connectivity, colored by cluster */}
+        {/* Nodes - dots sized by connectivity, colored by cluster */}
         {nodes.map(node => {
           const pos = positions.get(node.id)
           if (!pos) return null
@@ -1311,7 +1311,7 @@ function GraphCanvas({
               onMouseUp={e => handleNodeMouseUp(e, node)}
               onClick={e => e.stopPropagation()}
             >
-              {/* Oversized invisible hit area — small dots are hard to grab */}
+              {/* Oversized invisible hit area - small dots are hard to grab */}
               <circle r={Math.max(r + 8, 14)} fill="transparent" />
               <circle
                 r={r}
@@ -1339,7 +1339,7 @@ function GraphCanvas({
                   stroke: 'rgba(8,9,10,0.75)',
                   strokeWidth: 3,
                   strokeLinejoin: 'round',
-                  // Flow re-entry glow — same 8s window as the outline glow.
+                  // Flow re-entry glow - same 8s window as the outline glow.
                   textShadow: flowGlowIds.includes(node.id) && flowGlowVisible
                     ? `0 0 12px ${FLOW_GLOW_SHADOW[node.organizer]}`
                     : undefined,
@@ -1354,7 +1354,7 @@ function GraphCanvas({
       </g>
     </svg>
 
-    {/* Connect-mode toggle — an explicit, discoverable way to link nodes without
+    {/* Connect-mode toggle - an explicit, discoverable way to link nodes without
         the Shift key. Top-left, mirroring the Scan buttons at bottom-left. */}
     <button
       onClick={() => {
@@ -1380,10 +1380,10 @@ function GraphCanvas({
         zIndex: 41,
       }}
     >
-      {connectMode ? '✓ Connecting — click two nodes' : '+ Connect nodes'}
+      {connectMode ? '✓ Connecting: click two ideas' : '+ Connect ideas'}
     </button>
 
-    {/* Connection-mode indicator — shows guidance during Shift-click OR connect mode */}
+    {/* Connection-mode indicator - shows guidance during Shift-click OR connect mode */}
     {(connectingFrom || connectMode) && (
       <div
         style={{
@@ -1407,7 +1407,7 @@ function GraphCanvas({
       </div>
     )}
 
-    {/* Inline relationship picker — appears at the connection midpoint after the
+    {/* Inline relationship picker - appears at the connection midpoint after the
         second node is picked. Not a modal: clicking the background or pressing
         Escape cancels with no edge created. */}
     {pendingConnection && pendingPosA && pendingPosB && (() => {
@@ -1469,7 +1469,7 @@ function GraphCanvas({
       )
     })()}
 
-    {/* Trace resolution popover — anchored to the midpoint of the clicked Ghost
+    {/* Trace resolution popover - anchored to the midpoint of the clicked Ghost
         Edge. Clicking the backdrop closes it WITHOUT accept/dismiss: the Ghost
         Edge stays pending and can be re-opened later. */}
     {activeGhost && (() => {
@@ -1610,7 +1610,7 @@ export function MapView() {
     [edges, activeNodes.map(n => n.id).join(',')]
   )
 
-  // Recomputes whenever nodes or edges change — panel and canvas stay in sync
+  // Recomputes whenever nodes or edges change - panel and canvas stay in sync
   const analytics = useMemo(
     () => computeAnalytics(graphNodes, graphLinks, currentSession),
     [graphNodes, graphLinks, currentSession]
@@ -1620,7 +1620,7 @@ export function MapView() {
     setSelected(selectedId === id ? null : id)
   }
 
-  // Used by the SidePanel's "Connect to…" list — unrelated to the Shift-click
+  // Used by the SidePanel's "Connect to…" list - unrelated to the Shift-click
   // picker flow, left as-is: creates an unclassified (null) edge directly.
   function handleCreateEdge(fromId: string, toId: string) {
     // Deduplicate before adding
@@ -1680,7 +1680,7 @@ export function MapView() {
         // Deep Scan is revealed ONLY after a STANDARD scan has completed AND
         // returned results (the result state is now populated with Ghost Edges).
         // It never renders before the first scan, on an empty result, or on
-        // error — so `deepAvailable` starts false (button not rendered) and only
+        // error - so `deepAvailable` starts false (button not rendered) and only
         // flips true here, in the standard-scan results branch.
         if (!deep) setDeepAvailable(true)
       }
@@ -1698,7 +1698,7 @@ export function MapView() {
   // Accept → a permanent, confirmed edge via the SAME store.addEdge every manual
   // (Shift-click) connection uses. Identical ThreadEdge shape; provenance marks
   // it AI-proposed-then-confirmed. The accepted pair is NOT added to
-  // dismissedPairs — being a real edge now, it's excluded from future scans
+  // dismissedPairs - being a real edge now, it's excluded from future scans
   // naturally. The Ghost Edge is removed; graphLinks recomputes into a solid edge.
   function handleAcceptGhost(sourceId: string, targetId: string) {
     const alreadyExists = edges.some(e =>
@@ -1719,7 +1719,7 @@ export function MapView() {
 
   // Dismiss → remove the Ghost Edge and persist the pair (both orderings) so it
   // never returns as a Ghost Edge unless dismissed pairs are cleared manually
-  // (clearing UI is a flagged future addition — not built here).
+  // (clearing UI is a flagged future addition - not built here).
   function handleDismissGhost(sourceId: string, targetId: string) {
     addDismissedPair(sourceId, targetId)
     setGhostEdges(g => g.filter(ge => !samePair(ge, sourceId, targetId)))
@@ -1750,7 +1750,7 @@ export function MapView() {
           maxWidth: '320px',
           lineHeight: 1.5,
         }}>
-          Add nodes in Linear view — they'll appear here.
+          Add ideas in Linear view. They'll appear here.
         </div>
       </div>
     )
@@ -1808,7 +1808,7 @@ export function MapView() {
                 : 'Scan for Patterns'}
             </button>
 
-            {/* Deep Scan — appears only after a standard scan has completed. */}
+            {/* Deep Scan - appears only after a standard scan has completed. */}
             {deepAvailable && (
               <button
                 onClick={() => runScan(true)}
@@ -1829,7 +1829,7 @@ export function MapView() {
               </button>
             )}
 
-            {/* Strong-only toggle — raises Trace's bar (fewer, higher-confidence
+            {/* Strong-only toggle - raises Trace's bar (fewer, higher-confidence
                 connections). Off by default so scans surface plenty to react to. */}
             <button
               onClick={() => setStrictMode(m => !m)}
@@ -1850,7 +1850,7 @@ export function MapView() {
               {strictMode ? '✓ Strong only' : 'Strong only'}
             </button>
 
-            {/* Transient empty / error status — never a prompt to add content. */}
+            {/* Transient empty / error status - never a prompt to add content. */}
             {traceMsg && (
               <span style={{
                 fontFamily: 'var(--font-mono)',
@@ -1879,7 +1879,7 @@ export function MapView() {
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
           }}>
-            Connect related ideas — click a node, then Shift-click another to link them.
+            Connect related ideas - click a node, then Shift-click another to link them.
           </div>
         )}
       </div>

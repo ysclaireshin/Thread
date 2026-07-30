@@ -10,7 +10,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
   const { nodes, addNode } = useStore()
   const [organizer, setOrganizer] = useState<Organizer>('core_idea')
   // The selected passage is CONTEXT and goes into Notes only. Label starts
-  // empty (autofocused below) so the user writes their own concise claim —
+  // empty (autofocused below) so the user writes their own concise claim -
   // deriving it from the same text made Label and Notes identical for short
   // selections, which read as "the notes showed up as the label".
   const [label, setLabel] = useState('')
@@ -35,7 +35,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
   const progressHints: Record<1 | 2 | 3, string> = {
     1: 'Just captured, still rough',
     2: 'Worked on, not final',
-    3: 'Settled — I trust this',
+    3: 'Settled - I trust this',
   }
 
   function submit() {
@@ -180,7 +180,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
             />
             {showLabelHint && (
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--tension)', marginTop: 'var(--sp-1)' }}>
-                Give it a short label to add — your Notes stay separate.
+                Give it a short label to add - your Notes stay separate.
               </p>
             )}
           </div>
@@ -234,8 +234,8 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
           {organizer !== 'open_thought' && (
             <div>
               <span style={sectionLabel}>
-                Priority — {(centrality * 100).toFixed(0)}%
-                {centrality < 0.3 && <span style={{ color: 'var(--open)', marginLeft: '8px' }}>(minor — small on the map)</span>}
+                Priority - {(centrality * 100).toFixed(0)}%
+                {centrality < 0.3 && <span style={{ color: 'var(--open)', marginLeft: '8px' }}>(minor - small on the map)</span>}
               </span>
               <input
                 type="range" min="0.05" max="1" step="0.05"
@@ -259,7 +259,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                 value={parentId}
                 onChange={e => setParentId(e.target.value)}
               >
-                <option value="">— select an idea —</option>
+                <option value="">- select an idea -</option>
                 {planets.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </div>

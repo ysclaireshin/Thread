@@ -42,7 +42,7 @@
 
 @theme {
   --font-sans: 'Geist', -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
+  --font-mono: 'Geist', -apple-system, sans-serif;
 }
 
 :root {
@@ -79,7 +79,7 @@
   --sun:         #F5B944;
   --sun-glow:    rgba(245, 185, 68, 0.12);
 
-  --font-mono: 'Geist Mono', monospace;
+  --font-mono: 'Geist', -apple-system, sans-serif;
   --font-sans: 'Geist', -apple-system, sans-serif;
 
   --text-10: 10px;
@@ -195,7 +195,7 @@ html, body, #root {
   50%       { opacity: 1.0; }
 }
 
-/* Trace: Ghost Edge soft pulse — slower and more subtle than focus-pulse, so a
+/* Trace: Ghost Edge soft pulse - slower and more subtle than focus-pulse, so a
    Ghost Edge reads as present but tentative, never attention-grabbing. */
 @keyframes ghost-pulse {
   0%, 100% { opacity: 0.35; }

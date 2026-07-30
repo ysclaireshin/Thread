@@ -181,7 +181,7 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
 // ─── Floating selection toolbar ───────────────────────────────────────────────
 
 // Probe is offered here as a second option only when the selection is a
-// meaningful run — at least 20 chars AND spanning at least one complete
+// meaningful run - at least 20 chars AND spanning at least one complete
 // sentence. Below that threshold the Probe button is absent from the DOM.
 function SelectionToolbar({ x, y, onCreateNode, showProbe, onProbe }: {
   x: number; y: number; onCreateNode: () => void; showProbe: boolean; onProbe: () => void
@@ -274,7 +274,7 @@ function sessionLabelColor(stats: SessionStats): string {
   return COLOR_TEAL
 }
 
-// "// current session" marker — always visible at top of outline
+// "// current session" marker - always visible at top of outline
 function CurrentSessionMarker() {
   return (
     <div style={{ height: 'var(--session-divider-h)', display: 'flex', alignItems: 'center', padding: '0 var(--sp-4)', background: 'var(--canvas)' }}>
@@ -289,7 +289,7 @@ function CurrentSessionMarker() {
   )
 }
 
-// Mini node row used inside expanded session diff — no click, no timestamp
+// Mini node row used inside expanded session diff - no click, no timestamp
 function DiffNodeRow({ node, strikethrough }: { node: ThreadNode; strikethrough?: boolean }) {
   const meta = ORGANIZER_META[node.organizer]
   return (
@@ -353,7 +353,7 @@ function SessionDivider({ session, allNodes, isPast }: SessionDividerProps) {
           color: labelColor,
           whiteSpace: 'nowrap',
         }}>
-          — session {session} —
+          - session {session} -
         </span>
         {isPast && (
           <span style={{
@@ -371,7 +371,7 @@ function SessionDivider({ session, allNodes, isPast }: SessionDividerProps) {
         )}
       </div>
 
-      {/* Expanded diff — past sessions only */}
+      {/* Expanded diff - past sessions only */}
       {isPast && expanded && (
         <div style={{ borderLeft: '1px solid var(--border)', marginLeft: 'var(--sp-4)', marginBottom: 'var(--sp-1)', paddingBottom: 'var(--sp-1)', background: 'var(--canvas)' }}>
           {addedActive.length > 0 && (
@@ -420,7 +420,7 @@ interface NodeRowProps {
   parentLabel?: string
 }
 
-// Ambient re-entry glow — a background-color warmth (distinct from the
+// Ambient re-entry glow - a background-color warmth (distinct from the
 // opacity-with-age effect), radiating from the row's left edge in the node's
 // organizer color at 8% opacity.
 const FLOW_GLOW_GRADIENT: Record<ThreadNode['organizer'], string> = {
@@ -471,7 +471,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
         onMouseEnter={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
         onMouseLeave={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
       >
-        {/* Flow re-entry glow — one-time fade (not a keyframe loop). Sits under
+        {/* Flow re-entry glow - one-time fade (not a keyframe loop). Sits under
             the content; background goes transparent after the 8s window. */}
         {isGlow && (
           <div style={{
@@ -522,7 +522,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
 
         {/* Line 3: type label · focus · parent · timestamp */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'auto' }}>
-          <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 'var(--text-10)', color: meta.cssVar }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: meta.cssVar }}>
             {meta.short.toLowerCase()}{isCurrentFocus ? ' · focus' : ''}
           </span>
           {isTension && parentLabel && (
@@ -536,7 +536,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
             </span>
           )}
           <span style={{ flex: 1 }} />
-          <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: 'var(--text-10)', color: stale ? 'var(--tension)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: stale ? 'var(--tension)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
             {relativeTime(node.last_reinforced_at)}{stale && isTension ? ` · ${staleDays(node.last_reinforced_at)}d unresolved` : stale ? ' stale' : ''}
           </span>
         </div>
@@ -610,7 +610,7 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas)' }}>
 
-      {/* Flow re-entry card — above the node list and the session divider */}
+      {/* Flow re-entry card - above the node list and the session divider */}
       <ReentryCard />
 
       {/* Always-visible current session anchor */}
@@ -778,7 +778,7 @@ export function LinearView() {
 
   // ─── Probe (text-selection trigger) ───────────────────────────────────────
   // One question, scoped to exactly the selected run. The floating card is not
-  // a modal — no backdrop — so the user can keep writing while it sits there.
+  // a modal - no backdrop - so the user can keep writing while it sits there.
   const [probe, setProbe] = useState<{
     x: number; y: number
     start: number; end: number; text: string
@@ -787,7 +787,7 @@ export function LinearView() {
 
   async function startProbe(sel: { start: number; end: number; text: string }, at: { x: number; y: number }) {
     setToolbar(null)
-    // Shared daily AI cap — surface the plain message inline in the result
+    // Shared daily AI cap - surface the plain message inline in the result
     // card and make no API call once the cap is hit.
     if (!tryConsumeAiCall()) {
       setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
@@ -807,7 +807,7 @@ export function LinearView() {
     if (!probe) return
     const id = `probe-${Date.now()}`
     // Node created from a Probe: the question is the label; provenance is
-    // ai_proposed_confirmed (AI-authored, user-confirmed by this click) — NOT
+    // ai_proposed_confirmed (AI-authored, user-confirmed by this click) - NOT
     // 'human'. session_id + createdWithFocus are auto-stamped by store.addNode.
     addNode({
       id,
@@ -822,7 +822,7 @@ export function LinearView() {
       confidence: 2,
     })
     // Visual tether: reuse the exact TextAnchor pattern manually tagged spans
-    // use — the mirror div underlines the span in the node's (coral) color.
+    // use - the mirror div underlines the span in the node's (coral) color.
     addTextAnchor({
       id: `ta-${Date.now()}`,
       node_id: id,
@@ -833,7 +833,7 @@ export function LinearView() {
     setProbe(null)
   }
 
-  // Cmd+Shift+A — fires Probe while the text-selection surface is active (a
+  // Cmd+Shift+A - fires Probe while the text-selection surface is active (a
   // valid, Probe-eligible selection with its pill showing). No-op otherwise.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -854,7 +854,7 @@ export function LinearView() {
   // ─── Flow: restore cursor on project load ─────────────────────────────────
   // After the editor mounts, drop the caret on the last-edited line (centered,
   // focused) so the user can type immediately with no click. Runs once per
-  // project load — keyed on projectId, reads persisted state at fire time.
+  // project load - keyed on projectId, reads persisted state at fire time.
   useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
@@ -1023,7 +1023,7 @@ export function LinearView() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Outline</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-            {/* Passive, display-only count of unresolved tensions — never gates anything. */}
+            {/* Passive, display-only count of unresolved tensions - never gates anything. */}
             {(() => {
               const openTensions = nodes.filter(n => n.organizer === 'point_of_tension' && !n.resolved && !n.superseded_by).length
               return (
@@ -1051,7 +1051,7 @@ export function LinearView() {
         </>
       )}
 
-      {/* Probe result — floating inline card beneath the selection. Not a modal:
+      {/* Probe result - floating inline card beneath the selection. Not a modal:
           no backdrop, does not block writing. */}
       {probe && (
         <div style={{

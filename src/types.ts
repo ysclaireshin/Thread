@@ -37,7 +37,7 @@ export interface ThreadEdge {
   id: string
   from_id: string
   to_id: string
-  // Semantic relationship type — null until classified by a user-facing picker.
+  // Semantic relationship type - null until classified by a user-facing picker.
   relationship: Relationship | null
   // How this edge was created, mirrors ThreadNode.provenance.
   provenance: Provenance
@@ -69,7 +69,7 @@ export interface ThreadProject {
   // The session that was active when focusCommitment was written (the session
   // that ended with the last Save My Place). Previous-session lookups key off this.
   focusCommitmentSession?: number
-  // Snapshot of the draft (last ~200 words) at the moment Save My Place ran —
+  // Snapshot of the draft (last ~200 words) at the moment Save My Place ran -
   // used only as context for the Replay AI summary.
   focusDraftSnapshot?: string
   // Cursor position to restore on re-entry (0-indexed line + char offset in line).
@@ -86,7 +86,7 @@ export interface ThreadProject {
 // 'action' = transform into imperative. 'question' = raw content as-written.
 export function greetingFromFocus(node: ThreadNode, style: 'action' | 'question' = 'action'): string {
   if (style === 'question') {
-    // Show the label exactly as the user wrote it — if it's a question, it reads as a question.
+    // Show the label exactly as the user wrote it - if it's a question, it reads as a question.
     return node.label
   }
   // Action style: transform into an imperative frame
@@ -96,7 +96,7 @@ export function greetingFromFocus(node: ThreadNode, style: 'action' | 'question'
       return `Continue developing: ${label}`
     case 'point_of_tension': {
       const clause = node.description?.split(/[.!?]/)[0]?.trim()?.toLowerCase()
-      return clause ? `Resolve: ${label} — ${clause}` : `Resolve: ${label}`
+      return clause ? `Resolve: ${label} - ${clause}` : `Resolve: ${label}`
     }
     case 'open_thought': {
       const lower = label.charAt(0).toLowerCase() + label.slice(1)

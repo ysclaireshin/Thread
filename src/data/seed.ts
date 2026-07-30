@@ -1,6 +1,6 @@
 import type { ThreadProject } from '../types'
 
-// SEED is the "Example project" — only loaded when the user explicitly requests it.
+// SEED is the "Example project" - only loaded when the user explicitly requests it.
 // New projects start blank. This data is about Thread's own product research and
 // should NOT be the default on first load.
 export const SEED: ThreadProject = {
@@ -55,7 +55,7 @@ export const SEED: ThreadProject = {
     {
       id: 'p4',
       label: 'Existing PKM tools don\'t solve this',
-      description: 'Obsidian, Notion, and Roam address content storage. None address the persistence of epistemic state — which claims are settled, which are open — across sessions.',
+      description: 'Obsidian, Notion, and Roam address content storage. None address the persistence of epistemic state - which claims are settled, which are open - across sessions.',
       organizer: 'core_idea',
       centrality: 0.4,
       parent_id: null,
@@ -83,7 +83,7 @@ export const SEED: ThreadProject = {
     {
       id: 'm2',
       label: '"3 hours scrolling before I edit"',
-      description: '"I scroll up and down for 3 hours skimming until I notice something to edit, then 3 hours into that edit I remember what I meant to write about." — r/PhD',
+      description: '"I scroll up and down for 3 hours skimming until I notice something to edit, then 3 hours into that edit I remember what I meant to write about." - r/PhD',
       organizer: 'core_idea',
       centrality: 0.38,
       parent_id: null,
@@ -125,7 +125,7 @@ export const SEED: ThreadProject = {
     {
       id: 'a1',
       label: 'Visual map may just recreate the complexity problem',
-      description: 'A cluttered graph could be harder to re-enter than a clean text summary. Visualization only helps if the map itself is legible at a glance — not yet proven.',
+      description: 'A cluttered graph could be harder to re-enter than a clean text summary. Visualization only helps if the map itself is legible at a glance - not yet proven.',
       organizer: 'point_of_tension',
       centrality: 0.55,
       parent_id: 'p3',

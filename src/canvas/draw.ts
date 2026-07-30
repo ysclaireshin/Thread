@@ -1,6 +1,6 @@
 import type { ThreadNode, ThreadEdge, RenderState, Organizer } from '../types'
 
-// Always derive color from organizer — never trust n.color (may be stale seed data)
+// Always derive color from organizer - never trust n.color (may be stale seed data)
 const ORGANIZER_COLORS: Record<Organizer, string> = {
   core_idea:         '#4CC9A0',  // --core
   point_of_tension:  '#E06B5A',  // --tension
@@ -100,7 +100,7 @@ function getStarPos(node: ThreadNode) {
   return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
 }
 
-// Deterministic per-id phase in [0, 2π) — desynchronizes per-node animation
+// Deterministic per-id phase in [0, 2π) - desynchronizes per-node animation
 function idPhase(id: string): number {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0
@@ -197,7 +197,7 @@ export function drawFrame(
   // Labels stay readable at normal zoom, drop away when zoomed far out
   const showLabels = cam.zoom >= 0.55
 
-  // Stars — gentle float around their base position, plus spawn scale
+  // Stars - gentle float around their base position, plus spawn scale
   for (const n of stars) {
     const base = getStarPos(n)
     const ph = idPhase(n.id)
@@ -383,8 +383,8 @@ function buildLitSet(
 
 // ─── Draw primitives ─────────────────────────────────────────────────────────
 
-// Liquid sun (design E, canvas port): the body is a slowly morphing blob —
-// multi-harmonic radial wobble — while the fill breathes across the app's
+// Liquid sun (design E, canvas port): the body is a slowly morphing blob -
+// multi-harmonic radial wobble - while the fill breathes across the app's
 // liquid-hue palette (#F5B944 → #F5902A → #F5D84A) and the glow pulses.
 function drawSun(ctx: CanvasRenderingContext2D, x: number, y: number, time: number) {
   const t = time * 0.001
@@ -412,7 +412,7 @@ function drawSun(ctx: CanvasRenderingContext2D, x: number, y: number, time: numb
   ctx.fill()
 }
 
-// Always-on node label — Geist, centered under the node, dark halo for
+// Always-on node label - Geist, centered under the node, dark halo for
 // contrast where it crosses orbit rings.
 function drawNodeLabel(
   ctx: CanvasRenderingContext2D,
@@ -517,7 +517,7 @@ function drawComet(
   const OPEN = '#E8A84A'
   ctx.save(); ctx.globalAlpha = alpha
   const tailAngle = cometTailDir(theta, COMET_E, phi)
-  // Tail length shimmers slightly — reads as motion, not decoration
+  // Tail length shimmers slightly - reads as motion, not decoration
   const tailLen = 52 + 6 * Math.sin(time * 0.0025 + idPhase(n.id))
   const tx = x + Math.cos(tailAngle) * tailLen
   const ty = y + Math.sin(tailAngle) * tailLen
@@ -534,7 +534,7 @@ function drawComet(
     ctx.strokeStyle = 'rgba(232,168,74,0.5)'; ctx.lineWidth = 1.5; ctx.stroke()
   }
   ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fillStyle = 'rgba(232,168,74,0.08)'; ctx.fill()
-  // Nucleus — flat fill of --open
+  // Nucleus - flat fill of --open
   ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = OPEN; ctx.fill()
   // Focus pulse (current_focus comet)
   if (n.current_focus) {
@@ -567,7 +567,7 @@ function drawOrbitPaths(
   _anim: AnimState,
   asteroidPos: Record<string, { x: number; y: number }>,
 ) {
-  // Planet orbits — one stroke per occupied ring (radii are quantized now),
+  // Planet orbits - one stroke per occupied ring (radii are quantized now),
   // slightly stronger so the ring structure reads as deliberate
   const seenR = new Set<number>()
   for (const p of planets) {
@@ -591,7 +591,7 @@ function drawOrbitPaths(
 
 function drawStarfield(ctx: CanvasRenderingContext2D, stars: StarDot[], _time: number) {
   for (const s of stars) {
-    // Static opacity — no twinkling animation per design spec
+    // Static opacity - no twinkling animation per design spec
     ctx.beginPath(); ctx.arc(s.x, s.y, Math.min(s.r, 1), 0, Math.PI * 2)
     ctx.fillStyle = `rgba(255,255,255,${Math.min(0.35, Math.max(0.15, s.alpha))})`;
     ctx.fill()

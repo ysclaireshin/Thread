@@ -69,7 +69,7 @@ export function flushPendingSaves(): void {
 
 /**
  * Read every project belonging to the current (anonymous) user.
- * Returns null when cloud sync is unavailable — callers should then stay local.
+ * Returns null when cloud sync is unavailable - callers should then stay local.
  * This is the read path the previous write-only sync was missing entirely.
  */
 export async function loadProjects(): Promise<ThreadProject[] | null> {

@@ -5,7 +5,7 @@ export const MOON_ORBIT_R = 52          // moon orbit around parent planet
 export const MOON_ORBIT_R2 = 34         // alternate ring
 export const ASTEROID_ORBIT_R = 64      // asteroid orbit around parent planet
 
-// Multiple comets supported — each open_thought gets its own orbit slot
+// Multiple comets supported - each open_thought gets its own orbit slot
 export const COMET_E = 0.72
 export function cometOrbitParams(slotIndex: number) {
   return {

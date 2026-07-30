@@ -5,10 +5,10 @@ import { TextShimmerWave } from './core/text-shimmer-wave'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 import { aiFetch } from '../lib/aiFetch'
 
-// ─── Flow · Part 3/4 — the re-entry card ──────────────────────────────────────
+// ─── Flow · Part 3/4 - the re-entry card ──────────────────────────────────────
 // Sits at the top of the outline panel, above the "// current session" divider.
-// Shows the user's own commitment sentence verbatim (no AI), and — only on an
-// explicit ▶ Replay click — a single plain-language AI summary of the last
+// Shows the user's own commitment sentence verbatim (no AI), and - only on an
+// explicit ▶ Replay click - a single plain-language AI summary of the last
 // session. Nothing here calls the AI automatically.
 
 type CardMode = 'commitment' | 'loading' | 'ai'
@@ -47,7 +47,7 @@ export function ReentryCard() {
     return (
       <div style={card}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-disabled)', lineHeight: 1.5 }}>
-          Nothing saved from last time — use Save My Place at the end of this session.
+          Nothing saved from last time - use Save My Place at the end of this session.
         </span>
       </div>
     )
@@ -55,7 +55,7 @@ export function ReentryCard() {
 
   async function runReplay() {
     setErrorMsg(null)
-    // Shared daily AI cap — surfaced inline via the existing error line, no
+    // Shared daily AI cap - surfaced inline via the existing error line, no
     // API call made once the cap is hit.
     if (!tryConsumeAiCall()) {
       setErrorMsg(AI_LIMIT_MESSAGE)
@@ -86,7 +86,7 @@ export function ReentryCard() {
         max_tokens: 200,
         // Static system prompt (identical every call) marked for prompt
         // caching; only the user message varies. Same inertness caveat as
-        // Probe — see the summary note (prompt is below the cache minimum).
+        // Probe - see the summary note (prompt is below the cache minimum).
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: userPrompt }],
       })
@@ -101,9 +101,9 @@ export function ReentryCard() {
       setAiSummary(text)
       setMode('ai')
     } catch {
-      // Never surface an error code or stack trace — just fall back to the
+      // Never surface an error code or stack trace - just fall back to the
       // saved sentence with a plain note.
-      setErrorMsg("Couldn't reach AI — your saved sentence is above.")
+      setErrorMsg("Couldn't reach AI - your saved sentence is above.")
       setMode('commitment')
     }
   }
@@ -115,7 +115,7 @@ export function ReentryCard() {
 
   return (
     <div style={card}>
-      {/* Row 1 — ▶ Last session */}
+      {/* Row 1 - ▶ Last session */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ color: 'var(--open)', fontSize: '12px', lineHeight: 1 }}>▶</span>
         <span style={{
@@ -137,7 +137,7 @@ export function ReentryCard() {
         </div>
       ) : mode === 'ai' ? (
         <>
-          {/* AI summary — clearly labelled so it is never mistaken for the
+          {/* AI summary - clearly labelled so it is never mistaken for the
               user's own words, and styled distinctly (not italic). */}
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: '10px',
@@ -168,7 +168,7 @@ export function ReentryCard() {
         </>
       ) : (
         <>
-          {/* Row 2 — the user's exact sentence, verbatim */}
+          {/* Row 2 - the user's exact sentence, verbatim */}
           <p style={{
             fontFamily: 'var(--font-sans)', fontSize: '13px',
             color: 'var(--text-primary)', lineHeight: 1.5,
@@ -186,7 +186,7 @@ export function ReentryCard() {
             </span>
           )}
 
-          {/* Row 3 — ▶ Replay */}
+          {/* Row 3 - ▶ Replay */}
           <button
             onClick={runReplay}
             style={{
