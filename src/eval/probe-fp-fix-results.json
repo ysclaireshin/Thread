@@ -1,4 +1,5 @@
 {
+  "SUPERSEDED": "This file's '5/5 NONE, zero false positives' verdict went stale: a live re-run on 2026-07-29/30 found P1/P2/P5 (paragraph_id 6/7/10) had regressed to false positives (deterministic, not noise — 3-4/4 repeat runs failed each). Root cause and fix are in probe-usermsg-fix-results.json — the fixed user message presupposed a challengeable claim on every call; the NONE clause in the system prompt alone couldn't reliably override that. Left in place for history; do not treat the summary/verdict below as current.",
   "run_date": "2026-07-13T15:58:02.181Z",
   "model": "llama-3.3-70b-versatile via groq",
   "prompt_version": "baseline-v1 + none-escape-valve (read live from lib/probe.ts at run time)",

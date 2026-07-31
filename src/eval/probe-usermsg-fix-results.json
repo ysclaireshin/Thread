@@ -1,0 +1,45 @@
+{
+  "run_date": "2026-07-30T14:20:00.000Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181 (system prompt read live from src/lib/probe.ts); confirmed separately live on https://thread-solar-eta.vercel.app via direct authenticated fetch and via the actual UI",
+  "context": "probe-fp-fix-results.json's '5/5 NONE' verdict (2026-07-13) went stale. A live re-run on 2026-07-29/30 found P1/P2/P5 (paragraph_id 6/7/10) had regressed to deterministic false positives (3-4 failures out of 4 repeat runs each, not noise), and a new structurally-different clean paragraph (unrelated domain, zero evaluative language) also false-positived. Diagnosis: the user message sent on every call ('What is the core assumption here, and what question would most challenge it?') presupposes a challengeable claim exists, regardless of the text. The system prompt's NONE clause had already been strengthened multiple times (baseline -> CoT variant -> NONE escape valve v1 -> v2 with 'trap to avoid' framing and sharper few-shot examples) without fully fixing this, because it was fighting the presupposition downstream instead of removing it.",
+  "fix": "Rewrote buildUserMessage() in src/lib/probe.ts to ask an explicit yes/no gate first ('Does this selection argue a claim that rests on an assumption which, if wrong, would undermine it? If yes... If no ... respond with exactly NONE.') instead of presupposing the answer is yes. Applied to both the text-selection and node-selection branches. Also bumped max_tokens 60 -> 300 (harmless for Groq/Llama, needed if a reasoning model is ever used behind the proxy).",
+  "canonical_cases_source": "src/eval/probe-baseline.ts RECALL_CASES / PRECISION_CASES (ids 1-5 recall, 6-10 precision) — the original test set, not paraphrases.",
+  "recall_results": {
+    "R1": { "returned_none_count": "0/2", "sample_answer": "Do users always recall their project context when seeing the visual map?" },
+    "R2": { "returned_none_count": "0/2", "sample_answer": "Does automating workarounds actually improve them?" },
+    "R3": { "returned_none_count": "0/2", "sample_answer": "Does pressing Tab actually drop the cognitive cost to near zero?" },
+    "R4": { "returned_none_count": "0/2", "sample_answer": "Is a Shift-click always a deliberate action?" },
+    "R5": { "returned_none_count": "0/2", "sample_answer": "Does the research on implementation intentions apply to this specific context?" },
+    "total": "10/10 runs returned a real question, 0/10 falsely suppressed — recall fully preserved"
+  },
+  "precision_results": {
+    "P6": { "none_count": "5/5" },
+    "P7": { "none_count": "5/5" },
+    "P8": { "none_count": "5/5" },
+    "P9": { "none_count": "5/5" },
+    "P10": { "none_count": "5/5" },
+    "total": "25/25 runs correctly returned NONE on the canonical clean paragraphs"
+  },
+  "additional_generalization_check": {
+    "case": "Sourdough bread rises because wild yeast and bacteria in the starter produce carbon dioxide, which gets trapped in the gluten network. (unrelated domain, zero evaluative language, not in any few-shot example)",
+    "result_before_fix": "false positive — fabricated a challenge question",
+    "result_after_fix": "4/4 NONE, re-confirmed against the exact committed and deployed code (src/lib/probe.ts as of commit c2c3c7f)"
+  },
+  "ui_confirmation": {
+    "code": "unchanged from prior verification — ProbeCard renders a neutral non-coral line for status 'none'; handleSpawnFromProbe requires status 'done'.",
+    "live": "CONFIRMED live on production (thread-solar-eta.vercel.app): selected the canonical P8 procedural paragraph, clicked Probe, got exactly one POST /api/chat (200), zero nodes created, no fabricated question card rendered — consistent with a NONE response."
+  },
+  "regression_check": {
+    "trace": "confirmed unaffected — live authenticated call to /api/chat with agent:'trace' on production still returns clean, valid JSON with correct schema and real node IDs.",
+    "replay": "confirmed unaffected — live authenticated call to /api/replay on production still returns a clean one-sentence summary, no leak."
+  },
+  "deployment": {
+    "committed": "commit c2c3c7f, pushed to origin/main",
+    "verified_live": "confirmed the exact new user-message string is present in the production JS bundle (assets/index-WHExuO46.js) after deploy"
+  },
+  "summary": {
+    "verdict": "Fix effective and fully closed out. Recall unchanged (10/10 real questions). Precision on the canonical P6-P10 set: 25/25 correct NONE, up from the regressed state where P6/P7/P10 failed consistently. Out-of-domain generalization case (sourdough): 4/4 NONE against the exact deployed code. Deployed and verified live on production, including a full UI click-through and confirmation that Trace/Replay are unaffected.",
+    "open_item": null
+  }
+}
