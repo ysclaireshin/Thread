@@ -17,12 +17,8 @@
 
 import {
   type Req, type Res, send, bodyTooLarge, clampMaxTokens, authorizeAndMeter,
+  resolveLlmProvider,
 } from './_shared.js'
-
-const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
-// The model the client sends in the request body is ignored on purpose — the
-// server pins the model, exactly as the dev middleware does.
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 // The client sends `system` in Anthropic block-array form
 //   [{ type: 'text', text: '...', cache_control: {...} }]
@@ -44,8 +40,8 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     return
   }
 
-  const apiKey = process.env.GROQ_API_KEY ?? ''
-  if (!apiKey) {
+  // Key presence is independent of which agent — check it up front to fail fast.
+  if (!resolveLlmProvider().apiKey) {
     send(res, 503, { error: 'no_api_key' })
     return
   }
@@ -65,13 +61,18 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   }
 
   // Vercel parses a JSON body automatically; tolerate a raw string too.
-  let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number }
+  let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number; agent?: 'trace' | 'probe' | 'replay' }
   try {
     parsed = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : ((req.body ?? {}) as typeof parsed)
   } catch {
     send(res, 400, { error: 'bad_json' })
     return
   }
+
+  // Per-task model routing: `agent` (sent by the client) picks Trace's stronger
+  // model vs the clean model for Probe. `agent` is used only for selection — it
+  // is never forwarded upstream.
+  const provider = resolveLlmProvider(parsed.agent)
 
   // Anthropic -> OpenAI/Groq message array.
   const groqMessages: { role: string; content: string }[] = []
@@ -82,14 +83,15 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   }
 
   try {
-    const upstream = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+    const upstream = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
+        authorization: `Bearer ${provider.apiKey}`,
+        ...provider.headers,
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model: provider.model,
         messages: groqMessages,
         // Clamped server-side: the client is untrusted and max_tokens is a
         // direct cost multiplier.

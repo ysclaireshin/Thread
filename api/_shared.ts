@@ -55,6 +55,40 @@ export function clampMaxTokens(v: unknown, fallback: number, hard = 2000): numbe
   return Math.min(Math.max(1, Math.floor(wanted)), hard)
 }
 
+// ─── LLM provider resolution (prod) ─────────────────────────────────────────
+// Mirrors resolveLlmProvider() in vite.config.ts so dev and prod pick the same
+// upstream from the same env vars. OPENROUTER_API_KEY wins if present (routing,
+// fallbacks, model choice via OPENROUTER_MODEL); otherwise Groq's free model.
+// Set these in the Vercel project's Environment Variables.
+export interface LlmProvider { name: string; apiKey: string; baseUrl: string; model: string; headers: Record<string, string> }
+
+// PER-TASK ROUTING: Trace needs a strong reasoning model (structured JSON, real
+// connections); Probe/Replay need a clean NON-reasoning model that honours a
+// terse "output only X" contract (reasoning models leak their chain-of-thought
+// into the answer). `agent` selects which. Defaults suit the OpenRouter free
+// tier (Gemma = clean/short; Nemotron = strong reasoning).
+export function resolveLlmProvider(agent?: 'trace' | 'probe' | 'replay'): LlmProvider {
+  const orKey = process.env.OPENROUTER_API_KEY
+  if (orKey) {
+    const base = process.env.OPENROUTER_MODEL || 'google/gemma-4-26b-a4b-it:free'
+    const trace = process.env.OPENROUTER_TRACE_MODEL || base
+    return {
+      name: 'openrouter',
+      apiKey: orKey,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: agent === 'trace' ? trace : base,
+      headers: { 'HTTP-Referer': process.env.PUBLIC_APP_URL || 'https://thread.app', 'X-Title': 'Thread' },
+    }
+  }
+  return {
+    name: 'groq',
+    apiKey: process.env.GROQ_API_KEY ?? '',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.3-70b-versatile',
+    headers: {},
+  }
+}
+
 export type Gate =
   | { ok: true }
   | { ok: false; status: number; error: string }

@@ -53,8 +53,9 @@ async function callTrace(nodes: EvalNode[], pairs: EvalPair[], injection?: strin
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
+      agent: 'trace', // route to the production Trace model (OPENROUTER_TRACE_MODEL)
       model: TRACE_MODEL_IN_REQUEST,
-      max_tokens: TRACE_MAX_TOKENS,
+      max_tokens: Math.max(TRACE_MAX_TOKENS, 600), // reasoning models need headroom
       temperature: TRACE_TEMPERATURE,
       system: [{ type: 'text', text: TRACE_SYSTEM_VERBATIM, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: buildTraceUserMessage(nodes, pairs, injection) }],

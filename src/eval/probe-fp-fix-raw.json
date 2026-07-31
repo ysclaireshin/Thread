@@ -1,5 +1,5 @@
 {
-  "run_date": "2026-07-13T15:58:02.181Z",
+  "run_date": "2026-07-30T02:03:01.163Z",
   "model": "llama-3.3-70b-versatile via groq",
   "base_url": "http://localhost:5181",
   "prompt_version": "baseline-v1 + none-escape-valve (read live from lib/probe.ts)",
@@ -9,41 +9,41 @@
     {
       "paragraph_id": 1,
       "ok": true,
-      "answer": "Is re-reading the only cause of lost productive time?",
+      "answer": "Does the map actually reduce re-reading time?",
       "returned_none": false,
-      "word_count": 9,
+      "word_count": 7,
       "note": ""
     },
     {
       "paragraph_id": 2,
       "ok": true,
-      "answer": "Is automating workarounds more effective than addressing their causes?",
-      "returned_none": false,
-      "word_count": 9,
-      "note": ""
-    },
-    {
-      "paragraph_id": 3,
-      "ok": true,
-      "answer": "Is tagging the only interruption?",
-      "returned_none": false,
-      "word_count": 5,
-      "note": ""
-    },
-    {
-      "paragraph_id": 4,
-      "ok": true,
-      "answer": "Is every Shift-click a meaningful connection?",
+      "answer": "Is automating workarounds always an improvement?",
       "returned_none": false,
       "word_count": 6,
       "note": ""
     },
     {
-      "paragraph_id": 5,
+      "paragraph_id": 3,
       "ok": true,
-      "answer": "Does the user recall their last session's commitment sentence accurately?",
+      "answer": "Is instant node creation without a modal always less disruptive?",
       "returned_none": false,
       "word_count": 10,
+      "note": ""
+    },
+    {
+      "paragraph_id": 4,
+      "ok": true,
+      "answer": "Does a Shift-click always represent meaningful thought?",
+      "returned_none": false,
+      "word_count": 7,
+      "note": ""
+    },
+    {
+      "paragraph_id": 5,
+      "ok": true,
+      "answer": "Does the user's previous commitment sentence still reflect their current intentions?",
+      "returned_none": false,
+      "word_count": 11,
       "note": ""
     }
   ],
@@ -51,17 +51,17 @@
     {
       "paragraph_id": 6,
       "ok": true,
-      "answer": "NONE",
-      "returned_none": true,
-      "word_count": 0,
+      "answer": "Is client-side storage sufficient for this application?",
+      "returned_none": false,
+      "word_count": 7,
       "note": ""
     },
     {
       "paragraph_id": 7,
       "ok": true,
-      "answer": "NONE",
-      "returned_none": true,
-      "word_count": 0,
+      "answer": "Is user testing a reliable measure of a feature's value?",
+      "returned_none": false,
+      "word_count": 10,
       "note": ""
     },
     {
@@ -83,9 +83,9 @@
     {
       "paragraph_id": 10,
       "ok": true,
-      "answer": "NONE",
-      "returned_none": true,
-      "word_count": 0,
+      "answer": "Is larger node size equivalent to importance?",
+      "returned_none": false,
+      "word_count": 7,
       "note": ""
     }
   ]

@@ -4,6 +4,43 @@ import tailwindcss from '@tailwindcss/vite'
 import type { ServerResponse } from 'node:http'
 import type { IncomingMessage } from 'node:http'
 
+// ─── LLM provider resolution (dev) ──────────────────────────────────────────
+// Both dev proxies call one OpenAI-compatible upstream. Provider is chosen by
+// which key is present, so switching is a .env.local change with no code edit:
+//   * OPENROUTER_API_KEY set → OpenRouter (openrouter.ai) — routing, fallbacks,
+//     model choice via OPENROUTER_MODEL (default: llama-3.3-70b-instruct).
+//   * else GROQ_API_KEY → Groq's free llama-3.3-70b-versatile (previous default).
+// Keeps the prod api/ functions in sync — mirror this there. Keys are read
+// server-side only (never VITE_-prefixed).
+// `model` is the clean model for Probe/Replay; `traceModel` is the stronger
+// reasoning model for Trace (reasoning models leak chain-of-thought into Probe's
+// terse output, so they can't be shared). The chat proxy picks per request from
+// the client's `agent` field.
+interface LlmProvider { name: string; apiKey: string; baseUrl: string; model: string; traceModel: string; headers: Record<string, string> }
+function resolveLlmProvider(env: Record<string, string>): LlmProvider {
+  const orKey = env.OPENROUTER_API_KEY
+  if (orKey) {
+    const base = env.OPENROUTER_MODEL || 'google/gemma-4-26b-a4b-it:free'
+    return {
+      name: 'openrouter',
+      apiKey: orKey,
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: base,
+      traceModel: env.OPENROUTER_TRACE_MODEL || base,
+      // OpenRouter asks for these for attribution/ranking; harmless elsewhere.
+      headers: { 'HTTP-Referer': env.PUBLIC_APP_URL || 'http://localhost:5181', 'X-Title': 'Thread' },
+    }
+  }
+  return {
+    name: 'groq',
+    apiKey: env.GROQ_API_KEY ?? '',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.3-70b-versatile',
+    traceModel: 'llama-3.3-70b-versatile',
+    headers: {},
+  }
+}
+
 // ─── Shared proxy hardening ─────────────────────────────────────────────────
 // Both AI proxies below relay to a PAID upstream API, so an unbounded request
 // body is a denial-of-wallet / memory-exhaustion vector: `body += chunk` with
@@ -49,8 +86,9 @@ function readCappedBody(req: IncomingMessage, res: ServerResponse): Promise<stri
 // git history for the Anthropic version and set ANTHROPIC_API_KEY.
 function groqReplayProxy(): Plugin {
   let apiKey = ''
-  const baseUrl = 'https://api.groq.com/openai/v1'
-  const model = 'llama-3.3-70b-versatile'
+  let extraHeaders: Record<string, string> = {}
+  let baseUrl = 'https://api.groq.com/openai/v1'
+  let model = 'llama-3.3-70b-versatile'
 
   const systemToText = (system: unknown): string => {
     if (typeof system === 'string') return system
@@ -73,7 +111,7 @@ function groqReplayProxy(): Plugin {
     void (async () => {
       const body = await readCappedBody(req, res)
       if (body === null) return   // 413 already sent
-      let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number }
+      let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number; agent?: 'trace' | 'probe' | 'replay' }
       try {
         parsed = JSON.parse(body || '{}')
       } catch {
@@ -97,6 +135,7 @@ function groqReplayProxy(): Plugin {
           headers: {
             'content-type': 'application/json',
             'authorization': `Bearer ${apiKey}`,
+            ...extraHeaders,
           },
           body: JSON.stringify({
             model,
@@ -133,7 +172,8 @@ function groqReplayProxy(): Plugin {
   return {
     name: 'groq-replay-proxy',
     config(_, { mode }) {
-      apiKey = loadEnv(mode, process.cwd(), '').GROQ_API_KEY ?? ''
+      const _p = resolveLlmProvider(loadEnv(mode, process.cwd(), '') as Record<string, string>)
+      apiKey = _p.apiKey; baseUrl = _p.baseUrl; model = _p.model; extraHeaders = _p.headers
     },
     configureServer(server) {
       server.middlewares.use('/api/replay', handler)
@@ -158,11 +198,13 @@ function groqReplayProxy(): Plugin {
 // on the way out, so NO client code changes are needed.
 function groqChatProxy(): Plugin {
   let apiKey = ''
-  const baseUrl = 'https://api.groq.com/openai/v1'
-  // Groq's strongest free model — comparable to Claude Haiku in speed, and the
-  // best free option for the structured-JSON reasoning Trace requires. The
+  let extraHeaders: Record<string, string> = {}
+  let baseUrl = 'https://api.groq.com/openai/v1'
+  // `model` serves Probe (clean model); `traceModel` serves Trace (stronger
+  // reasoning model). Picked per request from the client's `agent` field. The
   // model the client sends in the request body is ignored on purpose.
-  const model = 'llama-3.3-70b-versatile'
+  let model = 'llama-3.3-70b-versatile'
+  let traceModel = 'llama-3.3-70b-versatile'
 
   // The client sends `system` in Anthropic block-array form
   //   [{ type: 'text', text: '...', cache_control: {...} }]
@@ -189,7 +231,7 @@ function groqChatProxy(): Plugin {
     void (async () => {
       const body = await readCappedBody(req, res)
       if (body === null) return   // 413 already sent
-      let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number }
+      let parsed: { system?: unknown; messages?: unknown; max_tokens?: number; temperature?: number; agent?: 'trace' | 'probe' | 'replay' }
       try {
         parsed = JSON.parse(body || '{}')
       } catch {
@@ -207,15 +249,20 @@ function groqChatProxy(): Plugin {
         groqMessages.push(...(parsed.messages as { role: string; content: string }[]))
       }
 
+      // Per-task routing: Trace gets the stronger reasoning model; everything
+      // else gets the clean model. `agent` is used only here, never forwarded.
+      const chosenModel = parsed.agent === 'trace' ? traceModel : model
+
       try {
         const upstream = await fetch(`${baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
             'authorization': `Bearer ${apiKey}`,
+            ...extraHeaders,
           },
           body: JSON.stringify({
-            model,
+            model: chosenModel,
             messages: groqMessages,
             // Clamped server-side: the client is untrusted, and an unbounded
             // max_tokens is a cost-amplification lever on a relayed API.
@@ -251,7 +298,8 @@ function groqChatProxy(): Plugin {
   return {
     name: 'groq-chat-proxy',
     config(_, { mode }) {
-      apiKey = loadEnv(mode, process.cwd(), '').GROQ_API_KEY ?? ''
+      const _p = resolveLlmProvider(loadEnv(mode, process.cwd(), '') as Record<string, string>)
+      apiKey = _p.apiKey; baseUrl = _p.baseUrl; model = _p.model; traceModel = _p.traceModel; extraHeaders = _p.headers
     },
     configureServer(server) {
       server.middlewares.use('/api/chat', handler)

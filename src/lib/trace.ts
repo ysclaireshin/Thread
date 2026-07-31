@@ -67,7 +67,11 @@ import { aiFetch } from './aiFetch'
 const TRACE_MODEL = 'claude-haiku-4-5-20251001'
 // 400 (up from 300) to absorb the JSON-schema structure overhead without
 // truncating rationale sentences (Trial 3 Part 1).
-const TRACE_MAX_TOKENS = 400
+// 600, not 400: gives reasoning models (e.g. Nemotron via OpenRouter) headroom
+// to finish thinking and still emit the full JSON without truncation. Groq/Llama
+// ignores the slack. extractJson() + the empty-result fallback handle any
+// truncation gracefully regardless.
+const TRACE_MAX_TOKENS = 600
 const TRACE_TEMPERATURE = 0
 
 // Static on every call — only the node/pair payload varies — so it carries the
@@ -81,9 +85,12 @@ For each pair, decide whether there is a real, specific connection between the t
 Rules:
 1. Return only the 2-3 strongest connections across all pairs. If fewer than 2 pairs have real connections, return only those. If none do, return an empty array.
 2. Do not stretch to fill a quota. An empty result is correct if nothing meets the bar.
-3. For every connection you return, write one rationale sentence (under 20 words) that states specifically why these two ideas connect — not what they both are about, but what one does to the other.
-4. The rationale must be specific enough that a reader could verify it is true or false by reading the two nodes. 'Both relate to user behavior' is not a valid rationale. 'This tension directly undermines the core claim by showing the mechanism fails at low detection probability' is valid.
-5. Use only the exact node IDs provided. Never invent, infer, or approximate an ID.
+3. For every connection you return, write one rationale sentence (under 20 words) that names a DIRECTED relationship: what one idea DOES to the other. Use a verb like challenges, undermines, answers, resolves, depends on, complicates, or is a precondition for. The rationale must point from one node to the other, not describe a trait they share.
+4. NEVER write a rationale that begins with or amounts to "Both ..." (both describe, both involve, both relate to, both lower, etc.). A shared trait, theme, or topic is NOT a connection — it is the surface similarity you must reject. If the only thing you can say is what the two have in common, there is no structural connection: leave the pair out.
+   BAD (reject): "Both describe fast, low-effort mechanisms." / "Both relate to user behavior."
+   GOOD (return): "This tension undermines the core claim that the mechanism speeds work, by showing it removes judgment."
+5. The rationale must be verifiable — a reader could confirm or refute it by reading only those two nodes.
+6. Use only the exact node IDs provided. Never invent, infer, or approximate an ID.
 
 Return valid JSON only. No preamble, no explanation, no markdown. Exactly this schema:
 {
@@ -207,6 +214,22 @@ function nodePayload(n: ThreadNode) {
   return { id: n.id, organizer: n.organizer, label: n.label, description: n.description ?? '' }
 }
 
+// Some models (e.g. Gemma via OpenRouter) wrap JSON in ```json fences or add
+// stray prose. Strip fences and, failing that, take the outermost {...} block so
+// the raw JSON.parse still works. Returns the input unchanged if nothing to fix.
+function extractJson(text: string): string {
+  let t = text.trim()
+  // Strip a leading/trailing markdown code fence (```json ... ```).
+  const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  if (fence) t = fence[1].trim()
+  if (t.startsWith('{') || t.startsWith('[')) return t
+  // Otherwise grab the first {...} span (handles leading prose).
+  const first = t.indexOf('{')
+  const last = t.lastIndexOf('}')
+  if (first !== -1 && last > first) return t.slice(first, last + 1)
+  return t
+}
+
 // STRICT raises the bar per-call (appended to the user message, so the cached
 // system prompt is untouched). Used by the "Strong only" toggle to trade
 // coverage for precision — fewer, higher-confidence Ghost Edges.
@@ -321,6 +344,9 @@ export async function runTraceScan(args: RunTraceArgs): Promise<TraceScanResult>
   // aiFetch attaches the Supabase session token; the production endpoint
   // requires it and meters the call against a server-side daily budget.
   const res = await aiFetch('/api/chat', {
+    // `agent: 'trace'` routes to the stronger reasoning model (OPENROUTER_TRACE_MODEL)
+    // for connection-finding; Probe (no agent) stays on the clean model.
+    agent: 'trace',
     model: TRACE_MODEL,
     max_tokens: TRACE_MAX_TOKENS,
     temperature: TRACE_TEMPERATURE,
@@ -341,7 +367,7 @@ export async function runTraceScan(args: RunTraceArgs): Promise<TraceScanResult>
   // through to the empty result state.
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(extractJson(text))
   } catch (err) {
     console.warn('Trace: JSON.parse failed — treating as empty result. Raw response:', text, err)
     return { kind: 'empty' }

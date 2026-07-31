@@ -12,12 +12,8 @@
 
 import {
   type Req, type Res, send, bodyTooLarge, clampMaxTokens, authorizeAndMeter,
+  resolveLlmProvider,
 } from './_shared.js'
-
-const GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
-// Pinned server-side. The client sends a `model` field, but it is IGNORED:
-// forwarding it would let a caller select an expensive model on our account.
-const GROQ_MODEL = 'llama-3.3-70b-versatile'
 
 // The client sends `system` in Anthropic block-array form
 //   [{ type: 'text', text: '...', cache_control: {...} }]
@@ -39,8 +35,8 @@ export default async function handler(req: Req, res: Res): Promise<void> {
     return
   }
 
-  const apiKey = process.env.GROQ_API_KEY ?? ''
-  if (!apiKey) {
+  const provider = resolveLlmProvider()
+  if (!provider.apiKey) {
     send(res, 503, { error: 'no_api_key' })
     return
   }
@@ -80,16 +76,17 @@ export default async function handler(req: Req, res: Res): Promise<void> {
   groqMessages.push(...(parsed.messages as { role: string; content: string }[]))
 
   try {
-    const upstream = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+    const upstream = await fetch(`${provider.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
+        authorization: `Bearer ${provider.apiKey}`,
+        ...provider.headers,
       },
       // Rebuilt from validated parts rather than forwarding the client body
       // verbatim, so model choice and token ceiling stay server-controlled.
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model: provider.model,
         messages: groqMessages,
         max_tokens: clampMaxTokens(parsed.max_tokens, 200, 1000),
         temperature: 0,
