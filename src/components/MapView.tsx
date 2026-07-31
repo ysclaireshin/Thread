@@ -9,7 +9,8 @@ import {
   type SimulationLinkDatum,
 } from 'd3-force'
 import { useStore } from '../store'
-import type { ThreadNode, Relationship } from '../types'
+import type { ThreadNode, ThreadEdge, Relationship } from '../types'
+import { ORGANIZER_META } from '../types'
 import { SidePanel } from './SidePanel'
 import { runTraceScan, getScopedNodes, type TraceConnection } from '../lib/trace'
 import { explainAiError } from '../lib/aiError'
@@ -101,6 +102,56 @@ function recencyOpacity(sessionId: number, currentSession: number): number {
   if (sessionsAgo === 2) return 0.5
   return 0.3
 }
+
+// ─── Expanded card view helpers ─────────────────────────────────────────────────
+// The expanded mode renders each idea as a labeled card instead of a dot. Two
+// encodings, deliberately independent of each other (as the top-right legend
+// states): the RING marks an unresolved point of tension; BRIGHTNESS marks how
+// recently the idea was touched. A resolved 3-sessions-old tension therefore has
+// no ring but is dim; a fresh unresolved tension is ringed and bright.
+
+// Short organizer family shown in a card's meta line (core / tension / open).
+const ORGANIZER_FAMILY: Record<ThreadNode['organizer'], string> = {
+  core_idea: 'core',
+  point_of_tension: 'tension',
+  open_thought: 'open',
+}
+
+// Sessions since a node was last touched. 0 = current working set.
+function sessionsAgoOf(sessionId: number, currentSession: number): number {
+  return Math.max(0, currentSession - sessionId)
+}
+
+// Recency phrase for the meta line. The current session is the working set, so
+// it carries no phrase; one session back reads "touched last session"; older
+// reads "N sessions ago" - matching the reference design.
+function recencyLabel(sessionsAgo: number): string | null {
+  if (sessionsAgo === 0) return null
+  if (sessionsAgo === 1) return 'touched last session'
+  return `${sessionsAgo} sessions ago`
+}
+
+// Brightness ramp for cards. Higher floor than the dot-graph's recencyOpacity so
+// card text stays legible even for the oldest ideas.
+function cardOpacity(sessionsAgo: number): number {
+  if (sessionsAgo <= 0) return 1
+  if (sessionsAgo === 1) return 0.85
+  if (sessionsAgo === 2) return 0.68
+  if (sessionsAgo === 3) return 0.55
+  return 0.45
+}
+
+// Two edge lenses shown in the expanded legend, collapsing the four stored
+// relationship types onto the reference design. "resolves" = a directed,
+// load-bearing link (depends_on / supersedes, or an edge pointing at a resolved
+// tension) drawn teal and solid; "elaborates" = everything else (supports /
+// challenges / unclassified) drawn gray and quiet.
+type EdgeLens = 'resolves' | 'elaborates'
+function edgeLens(rel: Relationship | null, targetResolved: boolean): EdgeLens {
+  if (rel === 'depends_on' || rel === 'supersedes' || targetResolved) return 'resolves'
+  return 'elaborates'
+}
+const RESOLVES_COLOR = '#4CC9A0'   // teal / core green
 
 // ─── Graph analysis (no AI - pure structure) ───────────────────────────────────
 
@@ -1565,6 +1616,337 @@ function GraphCanvas({
   )
 }
 
+// ─── Expanded card map ───────────────────────────────────────────────────────────
+// A distinct, full-bleed rendering that lays the thinking out as labeled cards
+// instead of dots. Same d3-force engine, wider spacing, cards sized to text.
+// Toggled from the map's top-right control; the Last-session / Full-map filter
+// lives inside it.
+
+interface ExpNode {
+  id: string
+  node: ThreadNode
+  x?: number; y?: number
+  vx?: number; vy?: number
+  fx?: number | null; fy?: number | null
+}
+interface ExpLink {
+  source: string | ExpNode
+  target: string | ExpNode
+  lens: EdgeLens
+}
+
+const CARD_W = 220
+
+function ExpandedMap({
+  nodes,
+  edges,
+  currentSession,
+}: {
+  nodes: ThreadNode[]
+  edges: ThreadEdge[]
+  currentSession: number
+}) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const simRef = useRef<ReturnType<typeof forceSimulation<ExpNode, ExpLink>> | null>(null)
+  const frameRef = useRef<number>(0)
+  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+  const transformRef = useRef({ x: 0, y: 0, k: 1 })
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 })
+  const [resetTransition, setResetTransition] = useState(false)
+  const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+  const dragRef = useRef<{ id: string; startX: number; startY: number } | null>(null)
+
+  const byId = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes])
+
+  // Edges kept only when both endpoints are visible; lens derived from the
+  // relationship and whether the target is a resolved tension.
+  const links: ExpLink[] = useMemo(() =>
+    edges
+      .filter(e => byId.has(e.from_id) && byId.has(e.to_id))
+      .map(e => ({
+        source: e.from_id,
+        target: e.to_id,
+        lens: edgeLens(e.relationship, !!byId.get(e.to_id)?.resolved),
+      })),
+    [edges, byId]
+  )
+
+  const neighbors = useCallback((id: string): Set<string> => {
+    const s = new Set<string>()
+    links.forEach(l => {
+      const src = typeof l.source === 'object' ? l.source.id : l.source
+      const tgt = typeof l.target === 'object' ? l.target.id : l.target
+      if (src === id) s.add(tgt)
+      if (tgt === id) s.add(src)
+    })
+    return s
+  }, [links])
+
+  useEffect(() => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    const width = (rect && rect.width > 0 ? rect.width : svgRef.current?.clientWidth) || 1000
+    const height = (rect && rect.height > 0 ? rect.height : svgRef.current?.clientHeight) || 640
+
+    const simNodes: ExpNode[] = nodes.map(n => {
+      const existing = simRef.current?.nodes().find(s => s.id === n.id)
+      return {
+        id: n.id,
+        node: n,
+        x: existing?.x ?? width / 2 + (Math.random() - 0.5) * 200,
+        y: existing?.y ?? height / 2 + (Math.random() - 0.5) * 160,
+        fx: existing?.fx ?? null,
+        fy: existing?.fy ?? null,
+      }
+    })
+    const simLinks: ExpLink[] = links.map(l => ({ ...l }))
+
+    if (simRef.current) {
+      simRef.current.stop()
+      cancelAnimationFrame(frameRef.current)
+    }
+
+    const sim = forceSimulation<ExpNode, ExpLink>(simNodes)
+      .force('link', simLinks.length > 0
+        ? forceLink<ExpNode, ExpLink>(simLinks).id(d => d.id).distance(230).strength(0.35)
+        : null)
+      .force('charge', forceManyBody<ExpNode>().strength(-520).distanceMax(460))
+      .force('center', forceCenter(width / 2, height / 2).strength(0.5))
+      .force('collision', forceCollide<ExpNode>().radius(122).strength(0.92))
+      .alphaDecay(0.02)
+      .velocityDecay(0.32)
+
+    sim.tick(400)
+
+    const post = sim.nodes()
+    if (post.length > 0) {
+      const xs = post.map(n => n.x ?? 0)
+      const ys = post.map(n => n.y ?? 0)
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2
+      const ox = width / 2 - cx
+      const oy = height / 2 - cy
+      post.forEach(n => { n.x = (n.x ?? 0) + ox; n.y = (n.y ?? 0) + oy })
+
+      // Fit the settled layout to the viewport so every card is visible on
+      // entry (cards are large; the raw spread often overflows). Scale about
+      // the viewport center, never past 1:1.
+      const pad = 64
+      let maxAbsX = 1, maxAbsY = 1
+      post.forEach(n => {
+        maxAbsX = Math.max(maxAbsX, Math.abs((n.x ?? 0) - width / 2) + CARD_W / 2)
+        maxAbsY = Math.max(maxAbsY, Math.abs((n.y ?? 0) - height / 2) + 56)
+      })
+      const k = Math.max(0.3, Math.min(1, (width / 2 - pad) / maxAbsX, (height / 2 - pad) / maxAbsY))
+      const fit = { x: (width / 2) * (1 - k), y: (height / 2) * (1 - k), k }
+      transformRef.current = fit
+      setTransform(fit)
+    }
+    sim.alpha(0.06).restart()
+
+    const tick = () => {
+      const map = new Map<string, { x: number; y: number }>()
+      sim.nodes().forEach(n => map.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 }))
+      setPositions(map)
+      if (sim.alpha() > 0.001) frameRef.current = requestAnimationFrame(tick)
+    }
+    frameRef.current = requestAnimationFrame(tick)
+    simRef.current = sim
+
+    return () => {
+      cancelAnimationFrame(frameRef.current)
+      sim.stop()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length, links.length])
+
+  const toGraph = (clientX: number, clientY: number) => {
+    const r = svgRef.current?.getBoundingClientRect()
+    if (!r) return { x: 0, y: 0 }
+    const { x: tx, y: ty, k } = transformRef.current
+    return { x: (clientX - r.left - tx) / k, y: (clientY - r.top - ty) / k }
+  }
+
+  const onBgDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if ((e.target as Element).closest?.('[data-card]')) return
+    panStartRef.current = { x: e.clientX, y: e.clientY, tx: transformRef.current.x, ty: transformRef.current.y }
+  }
+  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (dragRef.current) {
+      const sn = simRef.current?.nodes().find(n => n.id === dragRef.current!.id)
+      if (sn) {
+        const p = toGraph(e.clientX, e.clientY)
+        sn.fx = p.x; sn.fy = p.y
+        simRef.current?.alpha(0.12).restart()
+      }
+      return
+    }
+    if (panStartRef.current) {
+      transformRef.current = {
+        ...transformRef.current,
+        x: panStartRef.current.tx + (e.clientX - panStartRef.current.x),
+        y: panStartRef.current.ty + (e.clientY - panStartRef.current.y),
+      }
+      setTransform({ ...transformRef.current })
+    }
+  }
+  const onUp = () => { dragRef.current = null; panStartRef.current = null }
+  const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault(); e.stopPropagation()
+    const factor = e.deltaY < 0 ? 1.1 : 0.9
+    const newK = Math.min(3, Math.max(0.3, transformRef.current.k * factor))
+    const r = svgRef.current!.getBoundingClientRect()
+    const mx = e.clientX - r.left, my = e.clientY - r.top
+    const nx = mx - (mx - transformRef.current.x) * (newK / transformRef.current.k)
+    const ny = my - (my - transformRef.current.y) * (newK / transformRef.current.k)
+    transformRef.current = { x: nx, y: ny, k: newK }
+    setTransform({ ...transformRef.current })
+  }
+  const onDbl = (e: React.MouseEvent<SVGSVGElement>) => {
+    if ((e.target as Element).closest?.('[data-card]')) return
+    setResetTransition(true)
+    transformRef.current = { x: 0, y: 0, k: 1 }
+    setTransform({ x: 0, y: 0, k: 1 })
+    setTimeout(() => setResetTransition(false), 320)
+  }
+  const onCardDown = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY }
+    const sn = simRef.current?.nodes().find(n => n.id === id)
+    const p = positions.get(id)
+    if (sn && p) { sn.fx = p.x; sn.fy = p.y }
+  }
+
+  const hoverNeighbors = hoveredId ? neighbors(hoveredId) : null
+
+  return (
+    <svg
+      ref={svgRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        background: '#08090A',
+        backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+        backgroundSize: '28px 28px',
+        userSelect: 'none',
+        cursor: panStartRef.current ? 'grabbing' : 'default',
+        fontFamily: 'var(--font-sans)',
+      }}
+      onMouseDown={onBgDown}
+      onMouseMove={onMove}
+      onMouseUp={onUp}
+      onMouseLeave={onUp}
+      onWheel={onWheel}
+      onDoubleClick={onDbl}
+    >
+      <g
+        transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}
+        style={resetTransition ? { transition: 'transform 300ms ease' } : undefined}
+      >
+        {/* Edges - straight center-to-center lines, under the cards */}
+        {links.map((l, i) => {
+          const src = typeof l.source === 'object' ? l.source.id : l.source
+          const tgt = typeof l.target === 'object' ? l.target.id : l.target
+          const a = positions.get(src); const b = positions.get(tgt)
+          if (!a || !b) return null
+          const isHi = hoveredId && (src === hoveredId || tgt === hoveredId)
+          const isDim = hoveredId && !isHi
+          const resolves = l.lens === 'resolves'
+          const stroke = resolves
+            ? hexToRgba(RESOLVES_COLOR, isDim ? 0.12 : isHi ? 0.9 : 0.5)
+            : `rgba(255,255,255,${isDim ? 0.04 : isHi ? 0.4 : 0.16})`
+          return (
+            <line
+              key={i}
+              x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+              stroke={stroke}
+              strokeWidth={isHi ? 1.75 : 1.25}
+              strokeLinecap="round"
+              style={{ transition: 'stroke 150ms ease' }}
+            />
+          )
+        })}
+
+        {/* Cards */}
+        {nodes.map(n => {
+          const pos = positions.get(n.id)
+          if (!pos) return null
+          const meta = ORGANIZER_META[n.organizer]
+          const family = ORGANIZER_FAMILY[n.organizer]
+          const sAgo = sessionsAgoOf(n.session_id, currentSession)
+          const isUnresolvedTension = n.organizer === 'point_of_tension' && !n.resolved
+          const statusBit = n.organizer === 'point_of_tension'
+            ? (n.resolved ? 'resolved' : 'unresolved')
+            : null
+          const rec = recencyLabel(sAgo)
+          const metaText = [family, statusBit, rec].filter(Boolean).join(' · ')
+
+          const isDim = hoveredId && hoveredId !== n.id && !hoverNeighbors?.has(n.id)
+          const opacity = cardOpacity(sAgo) * (isDim ? 0.32 : 1)
+
+          const border = isUnresolvedTension
+            ? `1.5px solid ${hexToRgba(meta.color, 0.9)}`
+            : `1px solid ${hexToRgba(meta.color, 0.3)}`
+          const boxShadow = isUnresolvedTension
+            ? `0 0 0 1px ${hexToRgba(meta.color, 0.15)}, 0 4px 20px ${hexToRgba(meta.color, 0.12)}`
+            : '0 4px 18px rgba(0,0,0,0.35)'
+
+          return (
+            <foreignObject
+              key={n.id}
+              x={pos.x - CARD_W / 2}
+              y={pos.y - 55}
+              width={CARD_W}
+              height={110}
+              style={{ overflow: 'visible', opacity, transition: 'opacity 0.35s ease' }}
+            >
+              <div
+                data-card={n.id}
+                onMouseEnter={() => setHoveredId(n.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onMouseDown={e => onCardDown(e, n.id)}
+                style={{
+                  display: 'inline-flex',
+                  flexDirection: 'column',
+                  gap: '5px',
+                  maxWidth: `${CARD_W}px`,
+                  boxSizing: 'border-box',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  background: `linear-gradient(180deg, ${hexToRgba(meta.color, 0.05)}, rgba(12,13,14,0.9))`,
+                  border,
+                  boxShadow,
+                  cursor: 'grab',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <div style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  color: meta.color,
+                }}>
+                  {n.label}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10.5px',
+                  letterSpacing: '0.02em',
+                  color: 'var(--text-tertiary)',
+                }}>
+                  {metaText}
+                </div>
+              </div>
+            </foreignObject>
+          )
+        })}
+      </g>
+    </svg>
+  )
+}
+
 // ─── Main MapView ──────────────────────────────────────────────────────────────
 
 export function MapView() {
@@ -1573,6 +1955,12 @@ export function MapView() {
     dismissedPairs, addDismissedPair,
   } = useStore()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+  // ─── Expanded card mode ──────────────────────────────────────────────────────
+  // `expanded` swaps the dot graph for the labeled-card rendering. `sessionScope`
+  // is the Last-session / Full-map filter that lives inside the expanded view.
+  const [expanded, setExpanded] = useState(false)
+  const [sessionScope, setSessionScope] = useState<'last' | 'full'>('full')
 
   // ─── Trace state ───────────────────────────────────────────────────────────
   // Ghost Edges surfaced by the last scan (validated, still pending). scanStatus
@@ -1588,6 +1976,24 @@ export function MapView() {
   const traceMsgTimer = useRef<number | null>(null)
 
   const activeNodes = nodes.filter(n => !n.resolved && !n.superseded_by)
+
+  // Expanded view keeps resolved nodes (shown, dimmed, tagged "resolved") but
+  // drops superseded ones. The Last-session scope narrows to the current
+  // working set plus its 1-hop context, so recent thinking reads in situ.
+  const expandedNodesAll = useMemo(() => nodes.filter(n => !n.superseded_by), [nodes])
+  const expandedNodes = useMemo(() => {
+    if (sessionScope === 'full') return expandedNodesAll
+    const recent = new Set(
+      expandedNodesAll.filter(n => sessionsAgoOf(n.session_id, currentSession) === 0).map(n => n.id)
+    )
+    if (recent.size === 0) return expandedNodesAll
+    const keep = new Set(recent)
+    edges.forEach(e => {
+      if (recent.has(e.from_id)) keep.add(e.to_id)
+      if (recent.has(e.to_id)) keep.add(e.from_id)
+    })
+    return expandedNodesAll.filter(n => keep.has(n.id))
+  }, [expandedNodesAll, sessionScope, edges, currentSession])
 
   const graphNodes: GraphNode[] = useMemo(() => activeNodes.map(n => ({
     id: n.id,
@@ -1756,9 +2162,124 @@ export function MapView() {
     )
   }
 
+  if (expanded) {
+    const legendDot = (color: string, label: string) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span>{label}</span>
+      </div>
+    )
+    const legendLine = (color: string, label: string) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ width: '18px', height: 0, borderTop: `2px solid ${color}`, flexShrink: 0 }} />
+        <span>{label}</span>
+      </div>
+    )
+    const scopeBtn = (key: 'last' | 'full', label: string) => {
+      const on = sessionScope === key
+      return (
+        <button
+          onClick={() => setSessionScope(key)}
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+            background: on ? 'var(--surface-3)' : 'transparent',
+            border: `1px solid ${on ? 'var(--open)' : 'transparent'}`,
+            color: on ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            padding: '5px 14px',
+            borderRadius: '7px',
+            cursor: 'pointer',
+          }}
+        >
+          {label}
+        </button>
+      )
+    }
+
+    return (
+      <div style={{ flex: 1, position: 'relative', minHeight: 0, background: '#08090A', overflow: 'hidden' }}>
+        <ExpandedMap nodes={expandedNodes} edges={edges} currentSession={currentSession} />
+
+        {/* Top-left - map title */}
+        <div style={{
+          position: 'absolute', top: '18px', left: '22px',
+          fontFamily: 'var(--font-mono)', fontSize: '13px', letterSpacing: '0.2em',
+          color: 'var(--text-tertiary)', pointerEvents: 'none',
+        }}>
+          THREAD · MAP
+        </div>
+
+        {/* Top-right - Graph/collapse + scope toggle + encoding legend */}
+        <div style={{
+          position: 'absolute', top: '14px', right: '18px',
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => setExpanded(false)}
+              className="trace-scan-btn"
+              style={{
+                fontFamily: 'var(--font-mono)', fontSize: '12px',
+                background: 'var(--surface-2)', border: '1px solid var(--border)',
+                color: 'var(--text-secondary)', padding: '6px 12px',
+                borderRadius: '8px', cursor: 'pointer',
+              }}
+            >
+              ◱ Graph
+            </button>
+            <div style={{
+              display: 'flex', gap: '3px', padding: '3px',
+              background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '9px',
+            }}>
+              {scopeBtn('last', 'Last session')}
+              {scopeBtn('full', 'Full map')}
+            </div>
+          </div>
+          <div style={{
+            fontFamily: 'var(--font-mono)', fontSize: '11px', lineHeight: 1.55,
+            color: 'var(--text-tertiary)', textAlign: 'right', pointerEvents: 'none',
+          }}>
+            <div>ring = unresolved tension</div>
+            <div>brightness = how recently touched</div>
+            <div style={{ color: 'var(--text-disabled)' }}>independent of each other</div>
+          </div>
+        </div>
+
+        {/* Bottom-left - legend */}
+        <div style={{
+          position: 'absolute', bottom: '20px', left: '22px',
+          display: 'flex', flexDirection: 'column', gap: '9px',
+          fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-tertiary)',
+          pointerEvents: 'none',
+        }}>
+          {legendDot('var(--core)', 'core idea')}
+          {legendDot('var(--tension)', 'tension')}
+          {legendDot('var(--open)', 'open thought')}
+          {legendLine(RESOLVES_COLOR, 'resolves')}
+          {legendLine('rgba(255,255,255,0.28)', 'elaborates')}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', background: '#08090A' }}>
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {/* Expand toggle - swaps the dot graph for the labeled-card view */}
+        <button
+          onClick={() => setExpanded(true)}
+          className="trace-scan-btn"
+          style={{
+            position: 'absolute', top: '12px', right: '16px', zIndex: 41,
+            fontFamily: 'var(--font-mono)', fontSize: '11px',
+            background: 'var(--surface-2)', border: '1px solid var(--border)',
+            color: 'var(--text-secondary)', padding: '6px 14px',
+            borderRadius: '20px', cursor: 'pointer',
+          }}
+        >
+          ⤢ Expand
+        </button>
+
         <GraphCanvas
           nodes={graphNodes}
           links={graphLinks}
