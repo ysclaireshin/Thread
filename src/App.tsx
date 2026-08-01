@@ -4,6 +4,7 @@ import { SolarSystem } from './components/SolarSystem'
 import { SidePanel } from './components/SidePanel'
 import { LinearView } from './components/LinearView'
 import { MapView } from './components/MapView'
+import { FeedbackWidget } from './components/FeedbackWidget'
 import { useStore, hydrateFromCloud } from './store'
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
           <MapView />
         )}
       </div>
+      <FeedbackWidget />
     </div>
   )
 }
