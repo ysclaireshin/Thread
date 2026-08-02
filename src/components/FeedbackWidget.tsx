@@ -16,11 +16,34 @@ const PROMPTS = [
 
 type Status = 'idle' | 'sending' | 'sent' | 'error'
 
+// Optional: mirrors every submission to Formspree (in addition to Supabase) so
+// replies can go out from an inbox instead of the Supabase dashboard. Formspree
+// treats a field literally named "email" as the reply-to address. Unset -> the
+// Formspree POST is skipped and only Supabase receives the submission, same
+// graceful-fallback pattern as VITE_SUPABASE_URL in lib/supabase.ts.
+const FORMSPREE_ENDPOINT = import.meta.env?.VITE_FORMSPREE_ENDPOINT as string | undefined
+
+async function submitToFormspree(message: string, email: string, context: Record<string, unknown>): Promise<boolean> {
+  if (!FORMSPREE_ENDPOINT) return true   // not configured - not a failure
+  try {
+    const res = await fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ email: email || undefined, message, ...context }),
+    })
+    return res.ok
+  } catch (err) {
+    console.warn('[formspree] feedback submit failed:', err)
+    return false
+  }
+}
+
 // A persistent edge tab (bottom-right, vertical label) that opens an accessible
 // feedback dialog. Global - mounted once in App, visible from every view.
 export function FeedbackWidget() {
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
+  const [email, setEmail] = useState('')
   const [status, setStatus] = useState<Status>('idle')
   const [prompt, setPrompt] = useState(PROMPTS[0])
 
@@ -31,6 +54,7 @@ export function FeedbackWidget() {
   const headingId = useId()
   const hintId = useId()
   const statusId = useId()
+  const emailId = useId()
 
   const viewMode = useStore(s => s.viewMode)
   const projectId = useStore(s => s.projectId)
@@ -80,12 +104,21 @@ export function FeedbackWidget() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const trimmed = message.trim()
+    const trimmedEmail = email.trim()
     if (!trimmed || status === 'sending') return
     setStatus('sending')
-    const ok = await submitFeedback(trimmed, { prompt, viewMode, projectId, url: window.location.href })
-    if (ok) {
+    const context = { prompt, viewMode, projectId, url: window.location.href, email: trimmedEmail || null }
+    // Supabase is the source of truth (source of "did this submission land");
+    // Formspree is a best-effort mirror for the reply-by-email workflow, so its
+    // failure alone doesn't fail the user-facing submit.
+    const [supaOk] = await Promise.all([
+      submitFeedback(trimmed, context),
+      submitToFormspree(trimmed, trimmedEmail, { prompt, viewMode, url: window.location.href }),
+    ])
+    if (supaOk) {
       setStatus('sent')
       setMessage('')
+      setEmail('')
       // Give the confirmation a moment to register before auto-closing.
       window.setTimeout(() => { setOpen(false) }, 1400)
     } else {
@@ -198,6 +231,41 @@ export function FeedbackWidget() {
             </p>
 
             <form onSubmit={handleSubmit}>
+              <label
+                htmlFor={emailId}
+                style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-11)',
+                  color: 'var(--text-tertiary)',
+                  marginBottom: '4px',
+                }}
+              >
+                Email <span style={{ color: 'var(--text-disabled)' }}>(optional - only if you want a reply)</span>
+              </label>
+              <input
+                id={emailId}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--text-13)',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 10px',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  marginBottom: '10px',
+                }}
+              />
+
               <textarea
                 id={`${headingId}-textarea`}
                 ref={textareaRef}
