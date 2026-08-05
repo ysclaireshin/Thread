@@ -967,6 +967,11 @@ export function LinearView() {
   }, [addModalOpen])
 
   function handleSelectionCreate(start: number, end: number, text: string, x: number, y: number) {
+    // A lingering Probe result card has no backdrop and no lifetime limit
+    // ('done'/'error' persist until dismissed) - it can sit on top of nearby
+    // draft text, silently swallowing the next selection's mouseup before it
+    // ever reaches the textarea. Starting a fresh selection always clears it.
+    setProbe(null)
     setSelection({ start, end, text })
     setToolbar({ x, y })
   }
@@ -1052,14 +1057,24 @@ export function LinearView() {
       )}
 
       {/* Probe result - floating inline card beneath the selection. Not a modal:
-          no backdrop, does not block writing. */}
+          no backdrop, does not block writing. The outer box is pinned to a
+          320px column so the card never runs off-screen, but its own content
+          (e.g. the one-line "none" state) is often much narrower - without
+          pointerEvents: 'none' here, the leftover transparent width still
+          swallows clicks/drags meant for the draft underneath, which is what
+          made selecting a second nearby span silently do nothing. Re-enabling
+          pointer events only on the actual rendered content (sized to fit it,
+          not the full 320px) keeps the card clickable while everything beside
+          it reaches the textarea normally. */}
       {probe && (
         <div style={{
           position: 'fixed', zIndex: 60,
           left: Math.max(8, Math.min(probe.x - 40, window.innerWidth - 340)),
           top: probe.y + 8,
           width: '320px',
+          pointerEvents: 'none',
         }}>
+          <div style={{ width: 'fit-content', maxWidth: '100%', pointerEvents: 'auto' }}>
           <ProbeCard
             status={probe.status}
             question={probe.question}
@@ -1067,6 +1082,7 @@ export function LinearView() {
             onSpawn={handleSpawnFromProbe}
             onDismiss={() => setProbe(null)}
           />
+          </div>
         </div>
       )}
 
