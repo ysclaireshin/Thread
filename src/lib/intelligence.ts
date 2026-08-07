@@ -6,6 +6,9 @@ export type IntelligenceInput = {
   nodes?: unknown[]
   edges?: unknown[]
   selectedText?: string
+  nodeLabel?: string
+  nodeDescription?: string
+  nodeOrganizer?: string
 }
 
 export type IntelligenceOutput = {
@@ -34,12 +37,15 @@ export async function runIntelligence(
     })
   }
 
-  if (input.selectedText) {
-    probeResult = await runProbe({
-      context: input.context,
-      selectedText: input.selectedText,
-    })
-  }
+if (input.selectedText || input.nodeLabel) {
+  probeResult = await runProbe({
+    context: input.context,
+    selectedText: input.selectedText,
+    nodeLabel: input.nodeLabel,
+    nodeDescription: input.nodeDescription,
+    nodeOrganizer: input.nodeOrganizer,
+  })
+}
 
   return {
     trace: traceResult,
