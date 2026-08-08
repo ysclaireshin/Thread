@@ -9,10 +9,14 @@ export type IntelligenceInput = {
   nodeLabel?: string
   nodeDescription?: string
   nodeOrganizer?: string
+  dismissedPairs?: unknown[]
+  deep?: boolean
+  strict?: boolean
 }
 
 export type IntelligenceOutput = {
-  trace?: unknown
+  kind?: 'empty' | 'results'
+  connections?: unknown[]
   probe?: unknown
   response: string
 }
@@ -29,12 +33,12 @@ export async function runIntelligence(
 
   if (input.nodes && input.edges) {
     traceResult = await runTraceScan({
-      nodes: input.nodes,
-      edges: input.edges,
-      dismissedPairs: [],
-      deep: false,
-      strict: false,
-    })
+  nodes: input.nodes,
+  edges: input.edges,
+  dismissedPairs: input.dismissedPairs ?? [],
+  deep: input.deep ?? false,
+  strict: input.strict ?? false,
+})
   }
 
 if (input.selectedText || input.nodeLabel) {
@@ -47,10 +51,8 @@ if (input.selectedText || input.nodeLabel) {
   })
 }
 
-  return {
-    trace: traceResult,
-    probe: probeResult,
-    response:
-      "Thread intelligence completed analysis.",
-  }
+return {
+  ...(traceResult ?? {}),
+  probe: probeResult,
+  response: "Thread intelligence completed analysis.",
 }
