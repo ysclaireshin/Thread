@@ -2080,6 +2080,7 @@ export function MapView() {
     try {
       const result = await runIntelligence({
         context: 'map_pattern_scan',
+        mode: 'trace',
         nodes,
         edges,
         dismissedPairs,
