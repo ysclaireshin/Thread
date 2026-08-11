@@ -1,8 +1,14 @@
 import { runTraceScan } from './trace'
 import { runProbe } from './probe'
 
+export type IntelligenceMode =
+  | 'trace'
+  | 'probe'
+  | 'both'
+
 export type IntelligenceInput = {
   context: string
+  mode: IntelligenceMode
   nodes?: unknown[]
   edges?: unknown[]
   selectedText?: string
@@ -31,8 +37,8 @@ export async function runIntelligence(
   // Add AI routing logic here:
   // "Should Thread use Trace, Probe, or both?"
 
-  if (input.nodes && input.edges) {
-    traceResult = await runTraceScan({
+  if ((input.mode === 'trace' || input.mode === 'both') && input.nodes && input.edges) {
+  traceResult = await runTraceScan({
   nodes: input.nodes,
   edges: input.edges,
   dismissedPairs: input.dismissedPairs ?? [],
