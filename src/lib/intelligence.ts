@@ -8,7 +8,7 @@ export type IntelligenceMode =
 
 export type IntelligenceInput = {
   context: string
-  mode: IntelligenceMode
+  mode?: IntelligenceMode
   nodes?: unknown[]
   edges?: unknown[]
   selectedText?: string
@@ -33,9 +33,56 @@ export async function runIntelligence(
   let traceResult = null
   let probeResult = null
 
-  // TODO:
-  // Add AI routing logic here:
-  // "Should Thread use Trace, Probe, or both?"
+  const decisionResponse = await aiFetch('/api/chat', {
+  system: [{
+    type: 'text',
+    text: `You are Thread's overall intelligence.
+
+Your job is to decide what kind of analysis Thread should perform based on the current context.
+
+Choose exactly one:
+- "trace" — find meaningful connections between nodes
+- "probe" — identify an assumption, tension, or question
+- "both" — when both types of analysis are useful
+- "none" — when neither is appropriate
+
+Return ONLY valid JSON:
+{"mode":"trace"}
+{"mode":"probe"}
+{"mode":"both"}
+{"mode":"none"}`,
+    cache_control: { type: 'ephemeral' },
+  }],
+  messages: [{
+    role: 'user',
+    content: JSON.stringify(input),
+  }],
+})
+
+  const decisionData = await decisionResponse.json()
+
+const decisionText = ((decisionData?.content ?? []) as { type: string; text?: string }[])
+  .filter(block => block.type === 'text')
+  .map(block => block.text ?? '')
+  .join('')
+  .trim()
+
+  let aiMode: IntelligenceMode = input.mode ?? 'none'
+
+try {
+  const parsed = JSON.parse(decisionText)
+  if (
+    parsed?.mode === 'trace' ||
+    parsed?.mode === 'probe' ||
+    parsed?.mode === 'both' ||
+    parsed?.mode === 'none'
+  ) {
+    aiMode = parsed.mode
+  }
+} catch (err) {
+  console.warn('Intelligence: failed to parse AI routing decision', err)
+}
+  
 
   if ((input.mode === 'trace' || input.mode === 'both') && input.nodes && input.edges) {
   traceResult = await runTraceScan({
