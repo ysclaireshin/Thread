@@ -1,10 +1,12 @@
 import { runTraceScan } from './trace'
 import { runProbe } from './probe'
+import { aiFetch } from './aiFetch'
 
 export type IntelligenceMode =
   | 'trace'
   | 'probe'
   | 'both'
+  | 'none'
 
 export type IntelligenceInput = {
   context: string
@@ -25,6 +27,7 @@ export type IntelligenceOutput = {
   connections?: unknown[]
   probe?: unknown
   response: string
+  mode: IntelligenceMode
 }
 
 export async function runIntelligence(
@@ -70,7 +73,9 @@ const decisionText = ((decisionData?.content ?? []) as { type: string; text?: st
   let aiMode: IntelligenceMode = input.mode ?? 'none'
 
 try {
-  const parsed = JSON.parse(decisionText)
+  const parsed = JSON.parse(
+  decisionText.replace(/^```json\s*|\s*```$/g, '').trim()
+)
   if (
     parsed?.mode === 'trace' ||
     parsed?.mode === 'probe' ||
@@ -84,7 +89,7 @@ try {
 }
   
 
-  if ((input.mode === 'trace' || input.mode === 'both') && input.nodes && input.edges) {
+  if ((aiMode === 'trace' || aiMode === 'both') && input.nodes && input.edges) {
   traceResult = await runTraceScan({
   nodes: input.nodes,
   edges: input.edges,
@@ -94,7 +99,10 @@ try {
 })
   }
 
-if (input.selectedText || input.nodeLabel) {
+if (
+  (aiMode === 'probe' || aiMode === 'both') &&
+  (input.selectedText || input.nodeLabel)
+) {
   probeResult = await runProbe({
     context: input.context,
     selectedText: input.selectedText,
@@ -105,7 +113,9 @@ if (input.selectedText || input.nodeLabel) {
 }
 
 return {
-  ...(traceResult ?? {}),
+  trace: traceResult,
   probe: probeResult,
-  response: "Thread intelligence completed analysis.",
+  response: `Thread intelligence selected ${aiMode}.`,
+  mode: aiMode,
+}
 }
