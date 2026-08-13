@@ -105,15 +105,19 @@ if (
   (aiMode === 'probe' || aiMode === 'both') &&
   (input.selectedText || input.nodeLabel)
 ) {
-  probeResult = await runProbe({
-    context: input.context === 'linear_editor_selection'
-  ? 'linear_editor_selection'
-  : 'map_node_selection',
-    selectedText: input.selectedText,
-    nodeLabel: input.nodeLabel ?? '',
-    nodeDescription: input.nodeDescription ?? '',
-    nodeOrganizer: input.nodeOrganizer ?? '',
-  })
+  if (input.context === 'linear_editor_selection' && input.selectedText) {
+    probeResult = await runProbe({
+      context: 'linear_editor_selection',
+      selectedText: input.selectedText,
+    })
+  } else if (input.nodeLabel) {
+    probeResult = await runProbe({
+      context: 'map_node_selection',
+      nodeLabel: input.nodeLabel,
+      nodeDescription: input.nodeDescription ?? '',
+      nodeOrganizer: input.nodeOrganizer ?? '',
+    })
+  }
 }
 
 return {
