@@ -12,7 +12,8 @@ import { useStore } from '../store'
 import type { ThreadNode, ThreadEdge, Relationship } from '../types'
 import { ORGANIZER_META } from '../types'
 import { SidePanel } from './SidePanel'
-import { runTraceScan, getScopedNodes, type TraceConnection } from '../lib/trace'
+import { getScopedNodes, type TraceConnection } from '../lib/trace'
+import { runIntelligence } from '../lib/intelligence'
 import { explainAiError } from '../lib/aiError'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 
@@ -2096,7 +2097,14 @@ export function MapView() {
     setTraceMsg(null)
     setGhostEdges([])
     try {
-      const result = await runTraceScan({ nodes, edges, dismissedPairs, deep, strict: strictMode })
+      const result = await runIntelligence({
+        context: 'map_pattern_scan',
+        nodes,
+        edges,
+        dismissedPairs,
+        deep,
+        strict: strictMode,
+      })
       if (result.kind === 'empty') {
         setGhostEdges([])
         flashTraceMsg('No hidden connections found in this scope.')

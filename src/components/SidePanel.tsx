@@ -3,7 +3,8 @@ import { X, Target, CheckCircle, Link2, Crosshair } from 'lucide-react'
 import { useStore } from '../store'
 import { ORGANIZER_META, organizerLabel, type ThreadNode } from '../types'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
-import { runProbe, isNoneResponse } from '../lib/probe'
+import { runIntelligence } from '../lib/intelligence'
+import { isNoneResponse } from '../lib/probe'
 import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
@@ -36,12 +37,14 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
     }
     setProbe({ status: 'loading', question: '', errorMsg: null })
     try {
-      const question = await runProbe({
+      const result = await runIntelligence({
         context: 'map_node_selection',
         nodeLabel: target.label,
         nodeDescription: target.description,
         nodeOrganizer: target.organizer,
       })
+
+      const question = result.probe as string
       // Guard against a selection change during the request.
       if (useStore.getState().selectedId !== target.id) return
       // NONE → neutral "no assumption found" state, not a manufactured question.
