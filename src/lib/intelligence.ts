@@ -10,7 +10,7 @@ export type IntelligenceMode =
   | 'none'
 
 export type IntelligenceInput = {
-  context: 'linear_editor_selection' | 'map_node_selection'
+  context: string
   mode?: IntelligenceMode
   nodes?: ThreadNode[]
   edges?: ThreadEdge[]
@@ -106,7 +106,9 @@ if (
   (input.selectedText || input.nodeLabel)
 ) {
   probeResult = await runProbe({
-    context: input.context,
+    context: input.context === 'linear_editor_selection'
+  ? 'linear_editor_selection'
+  : 'map_node_selection',
     selectedText: input.selectedText,
     nodeLabel: input.nodeLabel ?? '',
     nodeDescription: input.nodeDescription ?? '',
