@@ -1,6 +1,7 @@
 import { runTraceScan } from './trace'
 import { runProbe } from './probe'
 import { aiFetch } from './aiFetch'
+import type { ThreadNode, ThreadEdge } from '../types'
 
 export type IntelligenceMode =
   | 'trace'
@@ -9,15 +10,15 @@ export type IntelligenceMode =
   | 'none'
 
 export type IntelligenceInput = {
-  context: string
+  context: 'linear_editor_selection' | 'map_node_selection'
   mode?: IntelligenceMode
-  nodes?: unknown[]
-  edges?: unknown[]
+  nodes?: ThreadNode[]
+  edges?: ThreadEdge[]
   selectedText?: string
   nodeLabel?: string
   nodeDescription?: string
   nodeOrganizer?: string
-  dismissedPairs?: unknown[]
+  dismissedPairs?: string[]
   deep?: boolean
   strict?: boolean
 }
@@ -25,6 +26,7 @@ export type IntelligenceInput = {
 export type IntelligenceOutput = {
   kind?: 'empty' | 'results'
   connections?: unknown[]
+    trace?: unknown
   probe?: unknown
   response: string
   mode: IntelligenceMode
@@ -106,9 +108,9 @@ if (
   probeResult = await runProbe({
     context: input.context,
     selectedText: input.selectedText,
-    nodeLabel: input.nodeLabel,
-    nodeDescription: input.nodeDescription,
-    nodeOrganizer: input.nodeOrganizer,
+    nodeLabel: input.nodeLabel ?? '',
+    nodeDescription: input.nodeDescription ?? '',
+    nodeOrganizer: input.nodeOrganizer ?? '',
   })
 }
 
