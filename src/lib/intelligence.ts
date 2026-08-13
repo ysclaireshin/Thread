@@ -1,4 +1,4 @@
-import { runTraceScan } from './trace'
+import { runTraceScan, type TraceConnection } from './trace'
 import { runProbe } from './probe'
 import { aiFetch } from './aiFetch'
 import type { ThreadNode, ThreadEdge } from '../types'
@@ -25,7 +25,7 @@ export type IntelligenceInput = {
 
 export type IntelligenceOutput = {
   kind?: 'empty' | 'results'
-  connections?: unknown[]
+  connections?: TraceConnection[]
     trace?: unknown
   probe?: unknown
   response: string
