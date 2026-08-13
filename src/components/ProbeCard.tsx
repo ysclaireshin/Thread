@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 
-// How long the neutral "No significant assumption found" line stays before it
-// auto-dismisses. Long enough to read, short enough not to linger over the draft.
-const NONE_AUTO_DISMISS_MS = 2800
+// Probe returned NONE: it correctly declined to invent a critique. The quiet
+// line reads for 3 seconds, then fades out (300ms) and unmounts. Per Probe's
+// consolidated-rules spec: this is not an error state — it is Probe being
+// trustworthy about staying silent when there is no core assumption to challenge.
+const NONE_VISIBLE_MS = 3000
+const NONE_FADE_MS = 300
 
 // ─── ProbeCard ───────────────────────────────────────────────────────────────
 // The inline result surface for a single Probe. Not a modal - it never blocks
@@ -31,13 +34,16 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
   const dismissRef = useRef(onDismiss)
   dismissRef.current = onDismiss
 
-  // The neutral NONE state is informational only - auto-dismiss it once the user
-  // has had time to read it, so it never lingers over the draft. (Loading/done/
-  // error states are user-driven and stay until acted on.)
+  // The neutral NONE state is informational only - fade it out once the user has
+  // had time to read it, so it never lingers over the draft. (Loading/done/error
+  // states are user-driven and stay until acted on.) Fade at 3s, unmount at 3.3s.
+  const [noneFading, setNoneFading] = useState(false)
   useEffect(() => {
-    if (status !== 'none') return
-    const t = setTimeout(() => dismissRef.current(), NONE_AUTO_DISMISS_MS)
-    return () => clearTimeout(t)
+    if (status !== 'none') { setNoneFading(false); return }
+    setNoneFading(false)
+    const fade = setTimeout(() => setNoneFading(true), NONE_VISIBLE_MS)
+    const gone = setTimeout(() => dismissRef.current(), NONE_VISIBLE_MS + NONE_FADE_MS)
+    return () => { clearTimeout(fade); clearTimeout(gone) }
   }, [status])
 
   if (status === 'loading') {
@@ -57,21 +63,18 @@ export function ProbeCard({ status, question, errorMsg, onSpawn, onDismiss }: Pr
   if (status === 'none') {
     // The model judged the selection sound/trivial and returned NONE. Show a
     // brief neutral line - deliberately NOT the coral result card - so an empty
-    // finding reads as a correct outcome, not a failure or a false positive.
+    // finding reads as a correct outcome, not a failure or a false positive. It
+    // fades on its own; no dismiss control, because it is not asking for a decision.
     return (
-      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-tertiary)' }}>
-          No significant assumption found
-        </span>
-        <button
-          onClick={onDismiss}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-disabled)', padding: 0,
-          }}
-        >
-          ✕
-        </button>
+      <div
+        style={{
+          marginTop: '8px',
+          fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-tertiary)',
+          opacity: noneFading ? 0 : 1,
+          transition: `opacity ${NONE_FADE_MS}ms ease`,
+        }}
+      >
+        No core assumption to challenge here.
       </div>
     )
   }

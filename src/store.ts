@@ -51,6 +51,7 @@ function migrateProject(p: any): ThreadProject {
     lastCursorLine: (p.lastCursorLine ?? null) as number | null,
     lastCursorOffset: (p.lastCursorOffset ?? null) as number | null,
     dismissedPairs: (p.dismissedPairs as string[]) ?? [],
+    organizerLabels: p.organizerLabels as ThreadProject['organizerLabels'],
   }
 }
 
@@ -120,6 +121,7 @@ function saveAll(state: Store) {
     lastCursorLine: state.lastCursorLine,
     lastCursorOffset: state.lastCursorOffset,
     dismissedPairs: state.dismissedPairs,
+    organizerLabels: state.organizerLabels,
   }
   const updated = state._allProjects
     .map(p => p.id === state.projectId ? currentProj : p)
@@ -157,6 +159,8 @@ interface Store {
   lastCursorOffset: number | null
   // Trace: node-id pairs the user dismissed (both orderings stored). Persisted.
   dismissedPairs: string[]
+  // Per-project category renames (display only; undefined = all defaults). Persisted.
+  organizerLabels?: ThreadProject['organizerLabels']
   // All projects (for switcher)
   _allProjects: ThreadProject[]
   // UI state
@@ -174,6 +178,8 @@ interface Store {
   switchProject: (id: string) => void
   loadExampleProject: () => void
   renameProject: (name: string) => void
+  // Per-project category renames. Pass the full override map (undefined clears all).
+  setOrganizerLabels: (labels: ThreadProject['organizerLabels']) => void
   allProjectsMeta: () => ProjectMeta[]
 
   // Data actions
@@ -228,6 +234,7 @@ export const useStore = create<Store>((set, get) => {
     lastCursorLine: active.lastCursorLine ?? null,
     lastCursorOffset: active.lastCursorOffset ?? null,
     dismissedPairs: active.dismissedPairs ?? [],
+    organizerLabels: active.organizerLabels,
     _allProjects: all,
     selectedId: null,
     focusMode: true,
@@ -263,6 +270,7 @@ export const useStore = create<Store>((set, get) => {
           lastCursorLine: proj.lastCursorLine ?? null,
           lastCursorOffset: proj.lastCursorOffset ?? null,
           dismissedPairs: proj.dismissedPairs ?? [],
+          organizerLabels: proj.organizerLabels,
           _allProjects: [...updated, proj],
           selectedId: null,
         }
@@ -291,6 +299,7 @@ export const useStore = create<Store>((set, get) => {
           lastCursorLine: target.lastCursorLine ?? null,
           lastCursorOffset: target.lastCursorOffset ?? null,
           dismissedPairs: target.dismissedPairs ?? [],
+          organizerLabels: target.organizerLabels,
           _allProjects: updated,
           selectedId: null,
         }
@@ -319,6 +328,7 @@ export const useStore = create<Store>((set, get) => {
           lastCursorLine: example.lastCursorLine ?? null,
           lastCursorOffset: example.lastCursorOffset ?? null,
           dismissedPairs: example.dismissedPairs ?? [],
+          organizerLabels: example.organizerLabels,
           _allProjects: [...updated, example],
           selectedId: null,
         }
@@ -326,6 +336,12 @@ export const useStore = create<Store>((set, get) => {
     },
 
     renameProject: (name) => set({ projectName: name }),
+
+    // Per-project category renames. Store passes the whole override map; passing
+    // undefined (or an empty map) resets every role back to its ORGANIZER_META default.
+    setOrganizerLabels: (labels) => set({
+      organizerLabels: labels && Object.keys(labels).length > 0 ? labels : undefined,
+    }),
 
     // ── Data actions ────────────────────────────────────────────────────
 
@@ -457,6 +473,7 @@ export const useStore = create<Store>((set, get) => {
             lastCursorLine: newProj.lastCursorLine ?? null,
             lastCursorOffset: newProj.lastCursorOffset ?? null,
             dismissedPairs: newProj.dismissedPairs ?? [],
+            organizerLabels: newProj.organizerLabels,
             _allProjects: [...updated, newProj],
             selectedId: null,
           }
@@ -484,6 +501,7 @@ function extractProject(s: Store): ThreadProject {
     lastCursorLine: s.lastCursorLine,
     lastCursorOffset: s.lastCursorOffset,
     dismissedPairs: s.dismissedPairs,
+    organizerLabels: s.organizerLabels,
   }
 }
 
@@ -562,6 +580,7 @@ export async function hydrateFromCloud(): Promise<void> {
     lastCursorLine: active.lastCursorLine ?? null,
     lastCursorOffset: active.lastCursorOffset ?? null,
     dismissedPairs: active.dismissedPairs ?? [],
+    organizerLabels: active.organizerLabels,
     selectedId: null,
   })
 }

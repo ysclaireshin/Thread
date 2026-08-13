@@ -3,8 +3,10 @@ import { Plus, Download, Upload, Pencil, ArrowLeft } from 'lucide-react'
 import { useStore } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
 import { greetingFromFocus } from '../types'
-import { ORGANIZER_META, type Organizer } from '../types'
+import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
 import { OrganizerIcon } from './organizerIcon'
+import { CustomizeCategoriesModal } from './CustomizeCategoriesModal'
+import { extractText, ImportError, IMPORT_ACCEPT } from '../lib/importFile'
 import { motion, AnimatePresence } from 'motion/react'
 import { AnimatedNumber } from './core/animated-number'
 import { TextShimmerWave } from './core/text-shimmer-wave'
@@ -61,6 +63,7 @@ function ProjectSwitcher() {
   const { projectId, projectName, allProjectsMeta, switchProject, newProject, loadExampleProject, renameProject } = useStore()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [customizeOpen, setCustomizeOpen] = useState(false)
   const [nameInput, setNameInput] = useState(projectName)
   const projects = allProjectsMeta()
 
@@ -175,6 +178,12 @@ function ProjectSwitcher() {
               <Pencil size={10} />
               Rename project
             </button>
+            <button
+              onClick={() => { setCustomizeOpen(true); setOpen(false) }}
+              style={{ ...menuItemStyle, color: 'var(--text-tertiary)' }}
+            >
+              Customize categories
+            </button>
             <div style={dividerStyle} />
             <button
               onClick={() => { newProject(); setOpen(false) }}
@@ -191,6 +200,8 @@ function ProjectSwitcher() {
           </div>
         </>
       )}
+
+      {customizeOpen && <CustomizeCategoriesModal onClose={() => setCustomizeOpen(false)} />}
     </div>
   )
 }
@@ -198,7 +209,7 @@ function ProjectSwitcher() {
 // ─── Add Node Popover ─────────────────────────────────────────────────────────
 
 function AddPopover() {
-  const { addNode } = useStore()
+  const { addNode, organizerLabels } = useStore()
   const [organizer, setOrganizer] = useState<Organizer>('core_idea')
   const [label, setLabel] = useState('')
   const [notes, setNotes] = useState('')
@@ -323,7 +334,7 @@ function AddPopover() {
                     }}
                   >
                     <OrganizerIcon organizer={o} size={14} color={organizer === o ? meta.color : '#5C5B58'} />
-                    {meta.short}
+                    {organizerLabel(o, { organizerLabels })}
                   </button>
                 )
               })}
@@ -335,7 +346,7 @@ function AddPopover() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder={`Name this ${ORGANIZER_META[organizer].short.toLowerCase()}...`}
+              placeholder={`Name this ${organizerLabel(organizer, { organizerLabels }).toLowerCase()}...`}
               style={{
                 width: '100%',
                 fontFamily: 'var(--font-sans)',
@@ -442,6 +453,8 @@ export function Topbar({ reentryLoading = false }: Props) {
     setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
 
   const renderStates = computeRenderStates(nodes, edges)
   const activeNodes = nodes.filter(n => !n.resolved && !n.superseded_by)
@@ -453,25 +466,34 @@ export function Topbar({ reentryLoading = false }: Props) {
 
   const focusNode = nodes.find(n => n.current_focus)
 
-  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; if (!f) return
-    const r = new FileReader()
-    r.onload = ev => {
-      const text = (ev.target?.result as string) ?? ''
+  function appendToDraft(text: string) {
+    const current = useStore.getState().draftText
+    setDraftText(current.trim() ? `${current}\n\n${text}` : text)
+    setViewMode('linear') // make sure the draft is visible
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    setImportMsg(null)
+    setImporting(true)
+    try {
       // A Thread project export (.json) restores the whole project. Any other
-      // file - a .txt/.md document, or JSON that isn't a Thread project - loads
-      // its text straight into the draft so it actually shows up.
+      // file — a PDF, Word doc, markdown, or code/data file — has its text
+      // extracted and dropped into the draft so it actually shows up.
       if (f.name.toLowerCase().endsWith('.json')) {
+        const raw = await f.text()
         try {
-          const parsed = JSON.parse(text)
-          if (parsed && Array.isArray(parsed.nodes)) { importJSON(text); return }
-        } catch { /* not a project - fall through to draft import */ }
+          const parsed = JSON.parse(raw)
+          if (parsed && Array.isArray(parsed.nodes)) { importJSON(raw); return }
+        } catch { /* not a project — fall through to text import below */ }
       }
-      const current = useStore.getState().draftText
-      setDraftText(current.trim() ? `${current}\n\n${text}` : text)
-      setViewMode('linear') // make sure the draft is visible
+      appendToDraft(await extractText(f))
+    } catch (err) {
+      setImportMsg(err instanceof ImportError ? err.message : 'Import failed — that file couldn’t be read.')
+    } finally {
+      setImporting(false)
     }
-    r.readAsText(f); e.target.value = ''
   }
 
   const topbarStyle: React.CSSProperties = {
@@ -615,11 +637,38 @@ export function Topbar({ reentryLoading = false }: Props) {
         <button onClick={exportJSON} title="Export" style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>
           <Download size={13} />
         </button>
-        <button onClick={() => fileRef.current?.click()} title="Import" style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={importing}
+          title="Import — Thread project (.json), PDF, Word (.docx), text, or code"
+          style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: importing ? 'default' : 'pointer', padding: '2px', opacity: importing ? 0.5 : 1 }}
+        >
           <Upload size={13} />
         </button>
-        <input ref={fileRef} type="file" accept=".json,.txt,.md,.markdown,text/plain,text/markdown" style={{ display: 'none' }} onChange={handleImport} />
+        <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} style={{ display: 'none' }} onChange={handleImport} />
       </div>
+
+      {/* Import error pill — surfaces a user-safe reason when extraction fails */}
+      <AnimatePresence>
+        {importMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            onClick={() => setImportMsg(null)}
+            title="Dismiss"
+            style={{
+              position: 'absolute', top: 'calc(var(--topbar-height) + 6px)', right: 'var(--sp-4)',
+              zIndex: 40, maxWidth: '340px', cursor: 'pointer',
+              background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px',
+              padding: '8px 12px', fontFamily: 'var(--font-sans)', fontSize: '12px', lineHeight: 1.4,
+              color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }}
+          >
+            {importMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Greeting band ───────────────────────────────────────── */}
       <div style={{

@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect } from 'react'
-import { Link2, Crosshair } from 'lucide-react'
+import { Link2, Crosshair, Pin } from 'lucide-react'
 import { InView } from './core/in-view'
 import { useStore } from '../store'
-import { ORGANIZER_META, type TextAnchor, type ThreadNode } from '../types'
+import { ORGANIZER_META, organizerLabel, type TextAnchor, type ThreadNode } from '../types'
 import { OrganizerIcon } from './organizerIcon'
+import { OrganizerLegend } from './OrganizerLegend'
 import { AddNodeModal } from './AddNodeModal'
 import { SidePanel } from './SidePanel'
 import { SavePlaceModal } from './SavePlaceModal'
@@ -291,6 +292,7 @@ function CurrentSessionMarker() {
 
 // Mini node row used inside expanded session diff - no click, no timestamp
 function DiffNodeRow({ node, strikethrough }: { node: ThreadNode; strikethrough?: boolean }) {
+  const organizerLabels = useStore(s => s.organizerLabels)
   const meta = ORGANIZER_META[node.organizer]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', padding: '3px var(--sp-3) 3px var(--sp-5)' }}>
@@ -304,7 +306,7 @@ function DiffNodeRow({ node, strikethrough }: { node: ThreadNode; strikethrough?
         {node.label}
       </span>
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-        {meta.short}
+        {organizerLabel(node.organizer, { organizerLabels })}
       </span>
     </div>
   )
@@ -430,8 +432,9 @@ const FLOW_GLOW_GRADIENT: Record<ThreadNode['organizer'], string> = {
 }
 
 function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: NodeRowProps) {
-  const { nodes, setSelected, flowGlowIds, flowGlowVisible } = useStore()
+  const { nodes, setSelected, updateNode, flowGlowIds, flowGlowVisible, organizerLabels } = useStore()
   const node = nodes.find(n => n.id === id)
+  const [hovered, setHovered] = useState(false)
   if (!node) return null
 
   const meta = ORGANIZER_META[node.organizer]
@@ -440,6 +443,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
   const stale = isStale(node.last_reinforced_at)
   const isTension = node.organizer === 'point_of_tension'
   const isGlow = flowGlowIds.includes(id)
+  const isPinned = !!node.pinned
   const rowRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -468,8 +472,8 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
         background: isHighlighted ? 'var(--surface-2)' : 'transparent',
         transition: 'background var(--transition-fast)',
       }}
-        onMouseEnter={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
-        onMouseLeave={e => { if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+        onMouseEnter={e => { setHovered(true); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
+        onMouseLeave={e => { setHovered(false); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
       >
         {/* Flow re-entry glow - one-time fade (not a keyframe loop). Sits under
             the content; background goes transparent after the 8s window. */}
@@ -490,7 +494,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
           animation: isCurrentFocus ? 'pulse-accent 2s ease-in-out infinite' : 'none',
         }} />
 
-        {/* Line 1: type icon · title */}
+        {/* Line 1: type icon · title · pin */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-1)' }}>
           <OrganizerIcon organizer={node.organizer} size={14} color={meta.color} />
           <span style={{
@@ -504,6 +508,25 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
           }}>
             {node.label}
           </span>
+          {/* Priority pin - the first (and here, only) hover-revealed action.
+              Hidden until hover UNLESS pinned, in which case it stays visible in
+              amber as the persistent "matters right now" marker. Toggling never
+              touches the organizer/accent color - category identity is additive,
+              not replaced. */}
+          {(hovered || isPinned) && (
+            <button
+              onClick={e => { e.stopPropagation(); updateNode(id, { pinned: !isPinned }) }}
+              title={isPinned ? 'Unpin' : 'Pin as most important right now'}
+              aria-pressed={isPinned}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, padding: 0, border: 'none', background: 'none', cursor: 'pointer',
+                color: isPinned ? 'var(--open)' : 'var(--text-tertiary)',
+              }}
+            >
+              <Pin size={14} fill={isPinned ? 'var(--open)' : 'none'} />
+            </button>
+          )}
         </div>
 
         {/* Line 2: description preview */}
@@ -523,7 +546,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
         {/* Line 3: type label · focus · parent · timestamp */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginTop: 'auto' }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: meta.cssVar }}>
-            {meta.short.toLowerCase()}{isCurrentFocus ? ' · focus' : ''}
+            {organizerLabel(node.organizer, { organizerLabels }).toLowerCase()}{isCurrentFocus ? ' · focus' : ''}
           </span>
           {isTension && parentLabel && (
             <span style={{
@@ -576,23 +599,38 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
       if (!tensionsByParent[key]) tensionsByParent[key] = []
       tensionsByParent[key].push(n)
     })
+  // Pinned tensions rise to the top of their group (under a parent, or the
+  // unlinked list) - stable, so the pre-existing insertion order is otherwise kept.
+  for (const key of Object.keys(tensionsByParent)) {
+    tensionsByParent[key].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+  }
 
   const openThoughts = activeNodes
     .filter(n => n.organizer === 'open_thought')
     .sort((a, b) => {
+      // Pinned nodes rise to the top of the section; the existing secondary
+      // sort (session desc, then focus) is preserved within each group.
+      const p = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
+      if (p !== 0) return p
       const sd = (b.session_id ?? 1) - (a.session_id ?? 1)
       return sd !== 0 ? sd : (b.current_focus ? 1 : 0) - (a.current_focus ? 1 : 0)
     })
 
   const unattachedTensions = tensionsByParent['__unattached__'] ?? []
 
-  // Group core ideas by session for dividers
+  // Group core ideas by session for dividers. Core ideas keep their session
+  // grouping (pinning across session boundaries would fragment the dividers),
+  // so pinned core ideas instead rise to the top WITHIN their own session group.
   const sessionGroups: { session: number; ids: string[] }[] = []
   for (const n of coreIdeas) {
     const s = n.session_id ?? 1
     const last = sessionGroups[sessionGroups.length - 1]
     if (last && last.session === s) last.ids.push(n.id)
     else sessionGroups.push({ session: s, ids: [n.id] })
+  }
+  const pinnedById = (nid: string) => !!nodes.find(n => n.id === nid)?.pinned
+  for (const group of sessionGroups) {
+    group.ids.sort((a, b) => (pinnedById(b) ? 1 : 0) - (pinnedById(a) ? 1 : 0))
   }
 
   const sectionHeader: React.CSSProperties = {
@@ -609,6 +647,10 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas)' }}>
+
+      {/* Persistent color key - always at the very top so the category system is
+          graspable at a glance without having to remember what each color means. */}
+      <OrganizerLegend />
 
       {/* Flow re-entry card - above the node list and the session divider */}
       <ReentryCard />

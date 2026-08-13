@@ -1,0 +1,451 @@
+{
+  "run_date": "2026-08-09T08:19:42.392Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "base_url": "http://localhost:5181",
+  "runs_per_case": 5,
+  "prompt_version": "consolidated-rules-v1 — general NONE rules, <=2 examples",
+  "recall": [
+    {
+      "pair_id": "R1",
+      "paragraph_id": 1,
+      "kind": "recall",
+      "runs": [
+        {
+          "raw": "Is re-reading the only source of re-entry friction?",
+          "returned_none": false,
+          "word_count": 8,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is re-reading the only source of re-entry friction?",
+          "returned_none": false,
+          "word_count": 8,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is re-reading the primary cause of lost productive time?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is re-reading the primary cause of lost productive time?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is re-reading the only source of re-entry friction?",
+          "returned_none": false,
+          "word_count": 8,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 0,
+      "question_count": 5
+    },
+    {
+      "pair_id": "R2",
+      "paragraph_id": 2,
+      "kind": "recall",
+      "runs": [
+        {
+          "raw": "Does automating workarounds like 'parking on the hill' actually improve student outcomes?",
+          "returned_none": false,
+          "word_count": 12,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does automating workarounds like 'parking on the hill' actually improve student outcomes?",
+          "returned_none": false,
+          "word_count": 12,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does automating workarounds like 'parking on the hill' actually improve student outcomes?",
+          "returned_none": false,
+          "word_count": 12,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does automating workarounds like 'parking on the hill' actually improve student outcomes?",
+          "returned_none": false,
+          "word_count": 12,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does automating workarounds like 'parking on the hill' actually improve student outcomes?",
+          "returned_none": false,
+          "word_count": 12,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 0,
+      "question_count": 5
+    },
+    {
+      "pair_id": "R3",
+      "paragraph_id": 3,
+      "kind": "recall",
+      "runs": [
+        {
+          "raw": "Is the reduction in cognitive cost the primary factor in solving the interruption problem?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is the reduction in cognitive cost the primary factor in solving the interruption problem?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is the reduction in cognitive cost the primary factor in solving the interruption problem?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is the reduction in cognitive cost the primary factor in solving the interruption problem?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is the reduction in cognitive cost the primary factor in solving the interruption problem?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 0,
+      "question_count": 5
+    },
+    {
+      "pair_id": "R4",
+      "paragraph_id": 4,
+      "kind": "recall",
+      "runs": [
+        {
+          "raw": "Is manual connection always a guarantee of semantic meaning?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is manual connection always a guarantee of semantic meaning?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is manual connection always a reliable indicator of semantic meaning?",
+          "returned_none": false,
+          "word_count": 10,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is manual connection always a guarantee of semantic meaning?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Is manual connection always a guarantee of semantic meaning?",
+          "returned_none": false,
+          "word_count": 9,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 0,
+      "question_count": 5
+    },
+    {
+      "pair_id": "R5",
+      "paragraph_id": 5,
+      "kind": "recall",
+      "runs": [
+        {
+          "raw": "Does the research on implementation intentions apply to this specific context?",
+          "returned_none": false,
+          "word_count": 11,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Will self-authored plans always be more effective than AI summaries in all contexts and users?",
+          "returned_none": false,
+          "word_count": 15,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does the research on implementation intentions apply to this specific context?",
+          "returned_none": false,
+          "word_count": 11,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does the research on implementation intentions apply to this specific context?",
+          "returned_none": false,
+          "word_count": 11,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "Does the increased trust and psychological binding actually reduce procrastination in this specific context?",
+          "returned_none": false,
+          "word_count": 14,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 0,
+      "question_count": 5
+    }
+  ],
+  "precision": [
+    {
+      "pair_id": "P1",
+      "paragraph_id": 6,
+      "kind": "precision",
+      "runs": [
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 5,
+      "question_count": 0
+    },
+    {
+      "pair_id": "P2",
+      "paragraph_id": 7,
+      "kind": "precision",
+      "runs": [
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 5,
+      "question_count": 0
+    },
+    {
+      "pair_id": "P3",
+      "paragraph_id": 8,
+      "kind": "precision",
+      "runs": [
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 5,
+      "question_count": 0
+    },
+    {
+      "pair_id": "P4",
+      "paragraph_id": 9,
+      "kind": "precision",
+      "runs": [
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 5,
+      "question_count": 0
+    },
+    {
+      "pair_id": "P5",
+      "paragraph_id": 10,
+      "kind": "precision",
+      "runs": [
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        },
+        {
+          "raw": "NONE",
+          "returned_none": true,
+          "word_count": 0,
+          "ok": true,
+          "note": ""
+        }
+      ],
+      "none_count": 5,
+      "question_count": 0
+    }
+  ]
+}

@@ -31,43 +31,55 @@ import { aiFetch } from './aiFetch'
 
 const PROBE_MODEL = 'claude-haiku-4-5-20251001'
 
-// Reverted to the frozen baseline prompt (Trial 4 CoT showed no measured
-// benefit — flat recall, flat false positives, flat specificity — for ~10x the
-// length), then extended with ONE addition: the "NONE" escape valve (final
-// paragraph) so Probe can decline on sound/trivial text instead of manufacturing
-// a false-positive question. Everything before that paragraph is byte-identical
-// to PROBE_SYSTEM_VERBATIM in src/eval/probe-baseline.ts. Model, max_tokens (60),
-// temperature (0), and the user message are unchanged.
-const PROBE_SYSTEM = `You are examining a specific piece of writing or a single idea. Your job is to identify the single most important assumption that, if wrong, would most significantly undermine what is being claimed.
+// CONSOLIDATED-RULES REWRITE (consolidated-rules-v1). The previous prompt fought
+// its precision problem by accumulating near-duplicate NONE few-shot examples —
+// one per false-positive case — which produced whack-a-mole: each new example
+// patched one paragraph and left the boundary undefined for the next. This
+// version replaces that pile of examples with four GENERAL categories (RULE 1-4)
+// that define when Probe must stay silent, plus exactly TWO boundary examples
+// (one WITH a real assumption, one NONE). If a specific case regresses, the fix
+// is to sharpen a RULE — never to add another example. The role, one-question
+// requirements, and OUTPUT DISCIPLINE block are carried over from the prior
+// prompt unchanged; only the NONE machinery was rewritten. Model routes to Groq
+// llama-3.3-70b-versatile via /api/chat regardless of the model id below;
+// temperature 0, user message = the yes/no gate in buildUserMessage().
+const PROBE_SYSTEM = `You are examining a specific piece of writing or a single idea. When — and only when — the selection ASSERTS something, your job is to name the single most important assumption that, if wrong, would most undermine what is claimed, and turn it into one question.
 
-Return one question only. The question must:
-- Reference the actual content of the selection directly — not a generic template like 'have you considered alternatives?'
-- Target the core assumption, not a surface detail
-- Be answerable in principle (not rhetorical)
-- Be under 25 words
-- Use plain language — no academic or philosophical jargon
+THE CORE DISTINCTION.
+A selection earns a question ONLY when it ASSERTS: it makes a claim that rests on an unstated, challengeable assumption — typically arguing that something is true, better, more effective, or worth doing. A selection that merely DESCRIBES, DEFINES, or NARRATES — stating facts, explaining a process, giving history — carries no load-bearing assumption to challenge. Return a question only for a real assertion resting on a challengeable assumption. Return NONE in every other case. Do not manufacture a question to satisfy the request.
+
+RETURN NONE WHEN THE SELECTION IS ANY OF THESE.
+RULE 1 — Pure description or definition. It says what something is, how it works, or what it contains, without arguing that anything should be believed or done. Definitions, feature descriptions, and factual summaries have no hidden assumption to challenge.
+RULE 2 — Procedural or instructional text. It explains how to do something, step by step. A procedure is not a claim; there is nothing to probe.
+RULE 3 — Historical or factual account. It reports what happened or what is the case, accurately, without drawing a contested conclusion from it. Reporting a fact — including a decision reported alongside its own stated reason — is not asserting a challengeable position.
+RULE 4 — Any question you could ask would be generic. If the only question you can form is one that could apply to almost any paragraph ("have you considered alternatives?", "what evidence supports this?"), that is the signal that there is no specific assumption to target. Return NONE rather than a generic question.
+
+THE TRAP. Do not supply an unstated evaluative claim yourself and then challenge the claim you invented. A "so" / "because" / "therefore" clause is still description UNLESS what follows it is itself evaluative — asserting a benefit, a superiority, or that something should be done. Mechanical or reported consequences ("X was found, so we removed it") do not become arguments just because a connective is present.
+
+WHEN IN DOUBT, RETURN NONE. A missed real assumption is a smaller failure than a fabricated one. Probe's value depends on the reader trusting that when it speaks, there is genuinely something there.
+
+If — and only if — a real assertion is present, return one question that:
+- References the actual content of the selection directly — not a generic template like 'have you considered alternatives?'
+- Targets the core assumption, not a surface detail
+- Is answerable in principle (not rhetorical)
+- Is under 25 words
+- Uses plain language — no academic or philosophical jargon
 
 OUTPUT DISCIPLINE — THIS IS ABSOLUTE.
-Your entire reply is ONE line: the final question itself, ending in a question mark. Nothing else may appear in what you return.
-- Do not write any preamble, analysis, or planning. No "We need to…", "The hidden assumption is…", "Possible question:", "Let me…", or any lead-in.
-- Do not restate, quote, or summarize the selection. Do not comment on its word count or your own.
-- Do not explain how you arrived at the question. Do not show your reasoning, steps, or scaffolding. The reader sees only the question.
-- If you reason internally to choose the question, keep that reasoning entirely internal — it must never appear in the returned text. Emit the question and stop.
-Return exactly one question, one line, a question mark, done.
+Your entire reply is exactly ONE of two things: the single question (one line, ending in a question mark) OR the word NONE by itself.
+- No preamble, analysis, or planning. No "We need to…", "The hidden assumption is…", "Possible question:", "Let me…", or any lead-in.
+- Do not restate, quote, or summarize the selection. Do not comment on its word count or your own. Do not show your reasoning, steps, or scaffolding — keep any internal reasoning internal.
+- If the selection is description, definition, procedure, historical account, or anything where your only possible question would be generic: respond with exactly the word NONE and nothing else. Do not explain why. Do not apologize. Do not offer a question anyway. Just: NONE
 
-THE NONE RESPONSE — READ CAREFULLY.
-You will always be asked for a challenging question. Ignore that framing when it does not apply. A selection only earns a question when the writer is ARGUING something — asserting, using evaluative language (e.g. better, more effective, trustworthy, helps, solves, eliminates, important, reliable), that X is true or superior, in a way that leans on an unstated assumption. If the selection makes no such claim — if it is purely factual, a definition, a procedure, a neutral description or comparison of how something works, a decision reported alongside its own stated reason, or a plain visual/formatting fact — you MUST respond with exactly the word NONE and nothing else. Returning NONE is a correct, expected answer for sound or trivial text, not a failure. Do not invent a question to satisfy the request.
+Two examples mark the boundary — learn the shape, do not pattern-match on their topics.
 
-The trap to avoid: supplying an unstated evaluative claim yourself, then challenging the claim you invented. A "so" / "because" / "therefore" clause is still description, not an argument, UNLESS what follows it is itself evaluative. "System B sizes nodes by link count, so bigger nodes appear bigger" is description — the consequence is purely mechanical. "System B sizes nodes by link count, so users can immediately spot the most important ideas" IS an argument — it asserts a benefit. The same test applies to reported findings: "testing found X, so we removed it" reports a finding and the action taken on it; do not question whether the finding was reliable — that assumes an evaluative claim ("the finding was correct") the text never made.
+WITH a real assumption (return the question):
+Selection: "Remote teams outperform in-office teams, so companies should close their offices."
+Response: Is the performance gap caused by working remotely, or by which people choose remote work in the first place?
 
-Text like these MUST return NONE (do not question them):
-- "Water boils at 100 degrees Celsius at sea level." (a factual statement)
-- "A verb is a word that expresses an action or a state." (a definition)
-- "To save the file, press Command-S." (a procedure)
-- "Obsidian's graph view shows every note and every link, treating all nodes as equally weighted. Thread's map view uses node size to encode connection count, so more-connected ideas render visually larger than isolated ones." (a comparison of two systems' encoding choices; the "so" clause states a mechanical consequence, not that it helps users or is better)
-- "The confidence dot feature was removed after user testing and internal critique found its overhead disproportionate to its value." (a decision reported alongside its stated evidentiary rationale — not an argument that the finding was correct)
-
-When unsure whether a selection argues or merely describes, prefer NONE.`
+NO real assumption (return NONE):
+Selection: "A binary search repeatedly halves a sorted range, comparing the target to the middle element until it finds the value or the range is empty."
+Response: NONE`
 
 export type ProbePayload =
   | { context: 'linear_editor_selection'; selectedText: string }
@@ -87,7 +99,7 @@ export type ProbePayload =
 // unchanged (5/5 still real questions), precision false positives on the
 // canonical P6-P10 clean paragraphs dropped from consistent failures to
 // occasional (see src/eval results for counts).
-function buildUserMessage(payload: ProbePayload): string {
+export function buildUserMessage(payload: ProbePayload): string {
   if (payload.context === 'linear_editor_selection') {
     return `Selected text: ${payload.selectedText}\n\nDoes this selection argue a claim that rests on an assumption which, if wrong, would undermine it? If yes, state only the single question that would most challenge that assumption. If no — if this is purely factual, definitional, procedural, or otherwise merely descriptive — respond with exactly NONE.`
   }

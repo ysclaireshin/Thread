@@ -27,6 +27,10 @@ export interface ThreadNode {
   lastEditedAt?: string
   // Focus node that was active when this node was created
   createdWithFocus?: string | null
+  // Priority pin: a binary "matters right now" marker, independent of the
+  // organizer category and of centrality. Optional/undefined = not pinned, so
+  // saved projects stay backward compatible. Linear + Map visual marker only.
+  pinned?: boolean
   // Resolution / lifecycle
   resolved?: boolean
   resolution_note?: string
@@ -63,6 +67,16 @@ export interface ThreadProject {
   greetingStyle: 'action' | 'question'
   currentSession: number    // increments on each "Save my place"
   savedAt?: string
+  // ─── Per-project category renames (a RENAME layer, not a restructure) ──────
+  // Optional custom DISPLAY labels for each organizer. The organizer KEY
+  // (core_idea / point_of_tension / open_thought) and its color never change -
+  // only the shown text. Per-organizer and optional, so a project with no custom
+  // labels (or one that renamed a single role) falls back to ORGANIZER_META.
+  organizerLabels?: {
+    core_idea?: { label: string; short: string }
+    point_of_tension?: { label: string; short: string }
+    open_thought?: { label: string; short: string }
+  }
   // ─── Flow (re-entry) ──────────────────────────────────────────────────────
   // The user's own typed commitment sentence from the last "Save my place".
   focusCommitment?: string
@@ -136,4 +150,19 @@ export const ORGANIZER_META: Record<Organizer, {
     color: '#E8A84A', colorDim: '#2A1D08', colorMid: '#4A3010',
     cssVar: 'var(--open)', cssDim: 'var(--open-dim)', cssMid: 'var(--open-mid)',
   },
+}
+
+// ─── Effective category label ─────────────────────────────────────────────────
+// Returns the DISPLAY label for an organizer, preferring the project's per-role
+// custom name and falling back to ORGANIZER_META. Only text is resolved here -
+// colors stay bound to the fixed structural role and never route through this.
+// Takes a Pick so callers can pass either a full project or just { organizerLabels }.
+export function organizerLabel(
+  organizer: Organizer,
+  project: Pick<ThreadProject, 'organizerLabels'>,
+  variant: 'label' | 'short' = 'short'
+): string {
+  const custom = project.organizerLabels?.[organizer]
+  if (custom?.[variant]) return custom[variant]
+  return ORGANIZER_META[organizer][variant]
 }

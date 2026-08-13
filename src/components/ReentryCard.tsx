@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../store'
-import { ORGANIZER_META } from '../types'
+import { organizerLabel } from '../types'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 import { aiFetch } from '../lib/aiFetch'
@@ -26,7 +26,7 @@ Rules:
 - If you cannot determine what they were stuck on from the context, say so plainly rather than inventing something.`
 
 export function ReentryCard() {
-  const { focusCommitment, focusCommitmentSession, focusDraftSnapshot, currentSession, nodes } = useStore()
+  const { focusCommitment, focusCommitmentSession, focusDraftSnapshot, currentSession, nodes, organizerLabels } = useStore()
   const [mode, setMode] = useState<CardMode>('commitment')
   const [aiSummary, setAiSummary] = useState<string>('')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -68,7 +68,7 @@ export function ReentryCard() {
     const prevSession = focusCommitmentSession ?? currentSession - 1
     const sessionNodes = nodes
       .filter(n => (n.session_id ?? 0) === prevSession && !n.superseded_by)
-      .map(n => `- ${n.label} (${ORGANIZER_META[n.organizer].short})`)
+      .map(n => `- ${n.label} (${organizerLabel(n.organizer, { organizerLabels })})`)
       .join('\n') || '(none tagged)'
 
     const userPrompt = `Commitment from last session: ${focusCommitment}\n\n`

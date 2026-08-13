@@ -1,0 +1,142 @@
+{
+  "run_date": "2026-08-09T00:00:00.000Z",
+  "model": "llama-3.3-70b-versatile via groq",
+  "prompt_version": "consolidated-rules-v1 — general NONE rules, ≤2 examples",
+  "runs_per_case": 5,
+  "reviewer_notes": [
+    "Run harness: src/eval/run-probe-consolidated.ts. It reads the LIVE PROBE_SYSTEM textually from src/lib/probe.ts and imports the LIVE buildUserMessage() (the yes/no gate), so the numbers reflect exactly the deployed prompt — not a frozen copy. It aborts if the prompt lacks the NONE clause or the RULE 1-4 categories.",
+    "Objective fields (questions_returned, none_returned, per-run answers) are computed live and stored in src/eval/probe-consolidated-raw.json. hit/consistency are reviewer judgments against the planted flaws in src/eval/probe-baseline.ts (RECALL_CASES specificHitLooksLike / genericFluffLooksLike), applied identically to the baseline scoring.",
+    "PACING: Groq's free on_demand tier caps tokens-per-minute; the large system prompt × 50 calls blows the TPM cap. The runner paces every call (~8s) and retries 429s with the error's 'try again in Xs' hint, so an 'x' can never be silently miscounted as a decline. A first unpaced run returned spurious 429s and was discarded; this run had zero non-200 responses across all 50 calls.",
+    "MODEL REALITY: /api/chat routes to Groq (llama-3.3-70b-versatile) regardless of the model id in the request body — identical to the baseline and CoT runs, so the comparison is not confounded by a model difference.",
+    "Baseline reference: probe-baseline-results.json (5/5 clean paragraphs false-positived, recall hit 1/5). CoT reference: probe-cot-results.json (also 5/5 false positives, recall hit 1/5)."
+  ],
+  "recall_cases": [
+    {
+      "pair_id": "R1",
+      "runs": 5,
+      "questions_returned": 5,
+      "none_returned": 0,
+      "hits": 0,
+      "consistency": "variable",
+      "answers": [
+        "Is re-reading the only source of re-entry friction?",
+        "Is re-reading the primary cause of lost productive time?"
+      ],
+      "notes": "Both phrasings challenge the re-reading→time claim, not the planted flaw (the map only reflects manually tagged state and may be inaccurate/stale). A miss — but the SAME miss the baseline made ('Does a visual map actually reduce re-reading time?'). Not a regression: still a real question, not NONE."
+    },
+    {
+      "pair_id": "R2",
+      "runs": 5,
+      "questions_returned": 5,
+      "none_returned": 0,
+      "hits": 0,
+      "consistency": "consistent",
+      "answers": [
+        "Does automating workarounds like 'parking on the hill' actually improve student outcomes?"
+      ],
+      "notes": "Challenges whether automating the workaround helps; does not name the self-selection flaw (parkers may be the wrong target; the acute-friction students may do nothing at session end). other_real, consistent with baseline's miss."
+    },
+    {
+      "pair_id": "R3",
+      "runs": 5,
+      "questions_returned": 5,
+      "none_returned": 0,
+      "hits": 0,
+      "consistency": "consistent",
+      "answers": [
+        "Is the reduction in cognitive cost the primary factor in solving the interruption problem?"
+      ],
+      "notes": "Challenges the near-zero-cost claim in general; does not isolate the planted flaw (the real cost is the DECISION of what/when to tag, not the mechanical Tab press). other_real, same as baseline's miss."
+    },
+    {
+      "pair_id": "R4",
+      "runs": 5,
+      "questions_returned": 5,
+      "none_returned": 0,
+      "hits": 5,
+      "consistency": "consistent",
+      "answers": [
+        "Is manual connection always a guarantee of semantic meaning?",
+        "Is manual connection always a reliable indicator of semantic meaning?"
+      ],
+      "notes": "HIT on every run. Directly targets the planted flaw: deliberateness is not accuracy — a deliberate Shift-click does not guarantee the edge is semantically meaningful. This is the single case the baseline also hit; the rewrite preserves it."
+    },
+    {
+      "pair_id": "R5",
+      "runs": 5,
+      "questions_returned": 5,
+      "none_returned": 0,
+      "hits": 0,
+      "consistency": "variable",
+      "answers": [
+        "Does the research on implementation intentions apply to this specific context?",
+        "Will self-authored plans always be more effective than AI summaries in all contexts and users?",
+        "Does the increased trust and psychological binding actually reduce procrastination in this specific context?"
+      ],
+      "notes": "Gestures at whether the implementation-intention research applies / whether self-authored beats AI, but never names the planted precondition (session-end fatigue → vague sentences → the effect, which needs SPECIFIC plans, may not hold). other_real, same class of miss as baseline."
+    }
+  ],
+  "precision_cases": [
+    {
+      "pair_id": "P1",
+      "paragraph_id": 6,
+      "runs": 5,
+      "none_returned": 5,
+      "questions_fabricated": 0,
+      "still_false_positive": false,
+      "fabricated_questions": [],
+      "notes": "Client-side-storage technical description. Baseline fabricated 'Is client-side storage sufficient for data persistence?'; CoT fabricated the scalability variant. Now NONE on all 5 runs — caught by RULE 1 (pure description)."
+    },
+    {
+      "pair_id": "P2",
+      "paragraph_id": 7,
+      "runs": 5,
+      "none_returned": 5,
+      "questions_fabricated": 0,
+      "still_false_positive": false,
+      "fabricated_questions": [],
+      "notes": "Confidence-dot removal reported with its stated reason. Baseline fabricated 'Was user testing representative of actual users?'. Now NONE on all 5 runs — caught by RULE 3 (a decision reported alongside its own reason is not a challengeable assertion). This paragraph used to require a dedicated few-shot example; the general rule now covers it."
+    },
+    {
+      "pair_id": "P3",
+      "paragraph_id": 8,
+      "runs": 5,
+      "none_returned": 5,
+      "questions_fabricated": 0,
+      "still_false_positive": false,
+      "fabricated_questions": [],
+      "notes": "Shift-click procedure. Baseline fabricated 'Is Shift-clicking the source node a valid action?' (generic_noise). Now NONE on all 5 runs — caught by RULE 2 (procedural text)."
+    },
+    {
+      "pair_id": "P4",
+      "paragraph_id": 9,
+      "runs": 5,
+      "none_returned": 5,
+      "questions_fabricated": 0,
+      "still_false_positive": false,
+      "fabricated_questions": [],
+      "notes": "Tension-node definition. Baseline fabricated 'Is a tension node always distinct from a core idea?'. Now NONE on all 5 runs — caught by RULE 1 (definition)."
+    },
+    {
+      "pair_id": "P5",
+      "paragraph_id": 10,
+      "runs": 5,
+      "none_returned": 5,
+      "questions_fabricated": 0,
+      "still_false_positive": false,
+      "fabricated_questions": [],
+      "notes": "Obsidian/Thread node-size comparison. Baseline fabricated 'Are all connections equally important?'; CoT fabricated the importance-correlation variant. Now NONE on all 5 runs — caught by RULE 1 + THE TRAP (the 'so' clause is a mechanical consequence, not an asserted benefit). Notably this paragraph had its OWN few-shot example in the pre-rewrite prompt; the general rules now hold it without that example."
+    }
+  ],
+  "summary": {
+    "recall_hit_rate": "1/5 cases with consistent hits (R4 hit 5/5 runs; R1/R2/R3/R5 return real questions that miss their planted flaw — the same misses the baseline made)",
+    "precision_consistency": "25/25 total precision runs correctly returned NONE",
+    "remaining_false_positives": [],
+    "recall_regression": "none — 0/25 recall runs returned NONE; all five recall paragraphs still return a real question on every run"
+  },
+  "comparison_to_baseline": {
+    "false_positive_delta": "improved by 5 (baseline: 5/5 clean paragraphs false-positived on the single run; now 0 fabrications across 25/25 precision runs)",
+    "recall_delta": "same (hit rate 1/5 → 1/5; R4 remains the one consistent hit; no real flag newly suppressed)",
+    "verdict": "precision problem resolved"
+  }
+}

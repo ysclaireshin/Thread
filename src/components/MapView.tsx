@@ -34,6 +34,7 @@ interface GraphNode extends SimulationNodeDatum {
   organizer: ThreadNode['organizer']
   sessionId: number
   currentFocus: boolean
+  pinned: boolean
 }
 
 interface GraphLink extends SimulationLinkDatum<GraphNode> {
@@ -1375,6 +1376,18 @@ function GraphCanvas({
                   transition: 'stroke 120ms ease, r 200ms ease',
                 }}
               />
+              {/* Priority pin marker - a STATIC amber ring, deliberately distinct
+                  from the focus node's pulsing amber glow (they can coexist on the
+                  same node: static ring = pinned, pulsing glow = focus). */}
+              {node.pinned && (
+                <circle
+                  r={r + 4}
+                  fill="none"
+                  stroke="rgba(232,168,74,0.6)"
+                  strokeWidth={2}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
               <text
                 x={r + 6}
                 y={0}
@@ -1404,6 +1417,11 @@ function GraphCanvas({
         })}
       </g>
     </svg>
+
+    {/* No organizer legend here: Map nodes are colored by emergent CLUSTER, not by
+        organizer (CLUSTER_COLORS even reuses the core/tension hues for other
+        clusters), so an organizer key would mislabel the colors. The legend lives
+        only in Linear, where color == organizer. */}
 
     {/* Connect-mode toggle - an explicit, discoverable way to link nodes without
         the Shift key. Top-left, mirroring the Scan buttons at bottom-left. */}
@@ -2001,8 +2019,9 @@ export function MapView() {
     organizer: n.organizer,
     sessionId: n.session_id,
     currentFocus: n.current_focus,
+    pinned: !!n.pinned,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  })), [activeNodes.map(n => `${n.id}:${n.session_id}:${n.organizer}:${n.current_focus}:${n.label}`).join(',')])
+  })), [activeNodes.map(n => `${n.id}:${n.session_id}:${n.organizer}:${n.current_focus}:${n.pinned ? 1 : 0}:${n.label}`).join(',')])
 
   // Only manually-stored edges (no auto-generation)
   const graphLinks: GraphLink[] = useMemo(() =>

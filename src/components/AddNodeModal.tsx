@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react'
 import { X } from 'lucide-react'
 import { useStore } from '../store'
-import { ORGANIZER_META, type Organizer } from '../types'
+import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
 import { OrganizerIcon } from './organizerIcon'
 
 interface Props { onClose: () => void; prefillDescription?: string }
 
 export function AddNodeModal({ onClose, prefillDescription }: Props) {
-  const { nodes, addNode } = useStore()
+  const { nodes, addNode, organizerLabels } = useStore()
   const [organizer, setOrganizer] = useState<Organizer>('core_idea')
   // The selected passage is CONTEXT and goes into Notes only. Label starts
   // empty (autofocused below) so the user writes their own concise claim -
@@ -24,11 +24,16 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
 
   const planets = nodes.filter(n => n.organizer === 'core_idea' && n.centrality >= 0.3)
 
+  // Default descriptions assume argument-writing. Once a category is renamed
+  // they may no longer fit, so a customized role shows no description rather than
+  // a mismatched one (e.g. "Most important" → "A settled claim, premise…").
   const orgDescriptions: Record<Organizer, string> = {
     core_idea: 'A settled claim, premise, or argument in your draft.',
     point_of_tension: 'An unresolved objection or complication attached to an idea.',
     open_thought: 'An active question or unsettled area still being worked out.',
   }
+  const descriptionFor = (o: Organizer): string =>
+    organizerLabels?.[o] ? '' : orgDescriptions[o]
 
   // Progress levels (1 → 3): Raw, Refined, Done.
   const progressLabels: Record<1 | 2 | 3, string> = { 1: 'Raw', 2: 'Refined', 3: 'Done' }
@@ -149,7 +154,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                     minWidth: '78px',
                   }}>
                     <OrganizerIcon organizer={o} size={14} color={organizer === o ? m.color : '#5C5B58'} />
-                    {m.short}
+                    {organizerLabel(o, { organizerLabels })}
                   </span>
                   <span style={{
                     fontFamily: 'var(--font-sans)',
@@ -157,7 +162,7 @@ export function AddNodeModal({ onClose, prefillDescription }: Props) {
                     color: organizer === o ? 'var(--text-secondary)' : 'var(--text-tertiary)',
                     lineHeight: 1.4,
                   }}>
-                    {orgDescriptions[o]}
+                    {descriptionFor(o)}
                   </span>
                 </button>
               ))}

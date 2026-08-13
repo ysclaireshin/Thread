@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, Target, CheckCircle, Link2, Crosshair } from 'lucide-react'
 import { useStore } from '../store'
-import { ORGANIZER_META, type ThreadNode } from '../types'
+import { ORGANIZER_META, organizerLabel, type ThreadNode } from '../types'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
 import { runProbe, isNoneResponse } from '../lib/probe'
 import { explainAiError } from '../lib/aiError'
@@ -15,7 +15,7 @@ interface SidePanelProps {
 }
 
 export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }: SidePanelProps) {
-  const { selectedId, nodes, edges, setSelected, updateNode, setFocus, addNode } = useStore()
+  const { selectedId, nodes, edges, setSelected, updateNode, setFocus, addNode, organizerLabels } = useStore()
   const [notesDraft, setNotesDraft] = useState<string | null>(null)
   const [connectOpen, setConnectOpen] = useState(false)
   const [connectSearch, setConnectSearch] = useState('')
@@ -175,7 +175,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
             padding: '2px var(--sp-1)',
             borderRadius: 'var(--radius-sm)',
           }}>
-            {meta.short}
+            {organizerLabel(node.organizer, { organizerLabels })}
           </span>
           {parentNode && (
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>
