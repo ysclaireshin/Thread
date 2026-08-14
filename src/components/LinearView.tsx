@@ -807,6 +807,18 @@ function lineOffsetToCaret(text: string, line: number, offset: number): number {
 // Approx line height: font-size 14px × line-height 1.65 (see EditorWithHighlights).
 const EDITOR_LINE_HEIGHT = 14 * 1.65
 
+// ─── OPEN PRODUCT DECISION: onboarding / empty state (Stage B, Step 5) ────────
+// UNRESOLVED — requires Claire's explicit call, do not decide unilaterally.
+// The original Stage 0 decision was "no onboarding": arrive at a blank screen,
+// learn by doing. Both testers then hit navigation friction, which is evidence
+// that decision may need reversing.
+//   FOR reversing (add onboarding): two testers independently couldn't grasp the
+//     system at a glance.
+//   AGAINST: onboarding often masks a design that's too complicated — the better
+//     fix may be making the system self-evident (what the legend, the pin marker,
+//     and now Save-My-Place extraction attempt) rather than explaining it up front.
+// Decision deferred by design: resolve only after we see whether the legend + pin
+// + extraction actually fixed the legibility problem. Ship Stage B first, then decide.
 export function LinearView() {
   const { draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId } = useStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
