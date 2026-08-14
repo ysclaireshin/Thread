@@ -39,6 +39,7 @@ export function SidePanel({ showConnect, allNodes, onCreateEdge, onRemoveEdge }:
     try {
       const result = await runIntelligence({
         context: 'map_node_selection',
+        mode: 'probe',
         nodeLabel: target.label,
         nodeDescription: target.description,
         nodeOrganizer: target.organizer,

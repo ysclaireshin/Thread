@@ -2099,6 +2099,7 @@ export function MapView() {
     try {
       const result = await runIntelligence({
         context: 'map_pattern_scan',
+        mode: 'trace',
         nodes,
         edges,
         dismissedPairs,
@@ -2109,7 +2110,7 @@ export function MapView() {
         setGhostEdges([])
         flashTraceMsg('No hidden connections found in this scope.')
       } else {
-        setGhostEdges(result.connections)
+        setGhostEdges(result.connections ?? [])
         // Deep Scan is revealed ONLY after a STANDARD scan has completed AND
         // returned results (the result state is now populated with Ghost Edges).
         // It never renders before the first scan, on an empty result, or on
