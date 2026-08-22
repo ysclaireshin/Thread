@@ -208,8 +208,18 @@ function SelectionToolbar({ toolbarRef, x, y, onCreateNode, showProbe, onProbe }
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-md)',
     }}>
+      {/* preventDefault on mousedown only (keeps the textarea selection alive
+          instead of the browser collapsing it on focus loss) - the actual
+          action fires on click, i.e. only after a clean mousedown+mouseup on
+          THIS element. Firing the action straight from mousedown used to call
+          setToolbar(null) before this button's own mouseup happened, which
+          unmounted it mid-gesture; the stray mouseup then landed on the
+          textarea underneath and re-fired its selection handler, wiping the
+          just-started Probe and respawning the toolbar - the "jumps away and
+          never answers" loop. */}
       <button
-        onMouseDown={e => { e.preventDefault(); onCreateNode() }}
+        onMouseDown={e => e.preventDefault()}
+        onClick={onCreateNode}
         style={{
           display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
           minHeight: '44px',
@@ -227,7 +237,8 @@ function SelectionToolbar({ toolbarRef, x, y, onCreateNode, showProbe, onProbe }
         <>
           <span style={{ width: '1px', alignSelf: 'stretch', background: 'var(--border)' }} />
           <button
-            onMouseDown={e => { e.preventDefault(); onProbe() }}
+            onMouseDown={e => e.preventDefault()}
+            onClick={onProbe}
             style={{
               display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
               minHeight: '44px',
