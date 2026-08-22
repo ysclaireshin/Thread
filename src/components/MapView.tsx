@@ -15,7 +15,6 @@ import { SidePanel } from './SidePanel'
 import { getScopedNodes, type TraceConnection } from '../lib/trace'
 import { runIntelligence } from '../lib/intelligence'
 import { explainAiError } from '../lib/aiError'
-import { tryConsumeAiCall } from '../lib/aiLimit'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 
 // ─── Trace: Ghost Edge (client-side render model) ────────────────────────────
@@ -2129,33 +2128,6 @@ export function MapView() {
       setScanStatus('idle')
     }
   }
-
-  // ─── Ambient Trace (no click required) ────────────────────────────────────
-  // Mirrors LinearView's ambient Probe: a few seconds after the graph settles,
-  // Thread runs a scan on its own instead of waiting for the Scan button.
-  // Reuses runScan()/ghostEdges wholesale - a Ghost Edge is already a proposal
-  // surface with its own Accept/Dismiss, so an ambient hit needs no new UI.
-  // Guarded against clobbering a scan already in flight or results the user
-  // hasn't reviewed yet, and against re-scanning a graph that hasn't changed
-  // since the last ambient pass.
-  const lastAutoScanSigRef = useRef('')
-  const graphSig = graphNodes.map(n => n.id).join(',') + '|' + graphLinks.map(l => l.id).join(',')
-
-  async function maybeAutoTrace() {
-    if (scanStatus === 'scanning') return
-    if (ghostEdges.length > 0) return // unreviewed suggestions already showing - don't overwrite them
-    if (graphNodes.length < 2) return // nothing to connect
-    if (graphSig === lastAutoScanSigRef.current) return // already scanned this exact graph
-    lastAutoScanSigRef.current = graphSig
-    if (!tryConsumeAiCall()) return // respect the shared daily cap; fail silent, this was never requested
-    await runScan(false)
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(() => { void maybeAutoTrace() }, 4000)
-    return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graphSig])
 
   // Accept → a permanent, confirmed edge via the SAME store.addEdge every manual
   // (Shift-click) connection uses. Identical ThreadEdge shape; provenance marks
