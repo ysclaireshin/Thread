@@ -11,6 +11,7 @@ import { SavePlaceModal } from './SavePlaceModal'
 import { ReentryCard } from './ReentryCard'
 import { ProbeCard, type ProbeStatus } from './ProbeCard'
 import { runProbe, isNoneResponse } from '../lib/probe'
+import { runIntelligence } from '../lib/intelligence'
 import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
@@ -76,11 +77,12 @@ interface EditorProps {
   onSelectionCreate: (start: number, end: number, text: string, x: number, y: number) => void
   onAnchorClick: (nodeId: string) => void
   onCaret: (caret: number) => void
+  onScrollTopChange: (scrollTop: number) => void
   activeNodeId: string | null
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
-function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClick, onCaret, activeNodeId, textareaRef }: EditorProps) {
+function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClick, onCaret, onScrollTopChange, activeNodeId, textareaRef }: EditorProps) {
   const mirrorRef = useRef<HTMLDivElement>(null)
   const { textAnchors, nodes } = useStore()
 
@@ -97,6 +99,7 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
   function syncScroll() {
     if (mirrorRef.current && textareaRef.current) {
       mirrorRef.current.scrollTop = textareaRef.current.scrollTop
+      onScrollTopChange(textareaRef.current.scrollTop)
     }
   }
 
@@ -812,30 +815,35 @@ export function LinearView() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveButtonRef = useRef<HTMLDivElement>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
-  const [toolbar, setToolbar] = useState<{ x: number; y: number } | null>(null)
+  const [toolbar, setToolbar] = useState<{ x: number; y: number; scrollTop: number } | null>(null)
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addPrefill, setAddPrefill] = useState<AddNodePrefill | null>(null)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+  // Current textarea scrollTop, kept live so fixed-position overlays (toolbar,
+  // Probe card) can be re-anchored as the editor scrolls under them - without
+  // this they stay glued to the viewport coords captured at click time and
+  // visibly drift away from the text they're supposed to sit next to.
+  const [editorScrollTop, setEditorScrollTop] = useState(0)
 
   // ─── Probe (text-selection trigger) ───────────────────────────────────────
   // One question, scoped to exactly the selected run. The floating card is not
   // a modal - no backdrop - so the user can keep writing while it sits there.
   const [probe, setProbe] = useState<{
-    x: number; y: number
+    x: number; y: number; scrollTop: number
     start: number; end: number; text: string
     status: ProbeStatus; question: string; errorMsg: string | null
   } | null>(null)
 
-  async function startProbe(sel: { start: number; end: number; text: string }, at: { x: number; y: number }) {
+  async function startProbe(sel: { start: number; end: number; text: string }, at: { x: number; y: number; scrollTop: number }) {
     setToolbar(null)
     // Shared daily AI cap - surface the plain message inline in the result
     // card and make no API call once the cap is hit.
     if (!tryConsumeAiCall()) {
-      setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
+      setProbe({ x: at.x, y: at.y, scrollTop: at.scrollTop, start: sel.start, end: sel.end, text: sel.text, status: 'error', question: '', errorMsg: AI_LIMIT_MESSAGE })
       return
     }
-    setProbe({ x: at.x, y: at.y, start: sel.start, end: sel.end, text: sel.text, status: 'loading', question: '', errorMsg: null })
+    setProbe({ x: at.x, y: at.y, scrollTop: at.scrollTop, start: sel.start, end: sel.end, text: sel.text, status: 'loading', question: '', errorMsg: null })
     try {
       const question = await runProbe({ context: 'linear_editor_selection', selectedText: sel.text })
       // NONE → neutral "no assumption found" state, not a manufactured question.
@@ -873,6 +881,80 @@ export function LinearView() {
       text: probe.text,
     })
     setProbe(null)
+  }
+
+  // ─── Ambient suggestion (no click required) ───────────────────────────────
+  // A few seconds after the user stops typing, Thread's own intelligence
+  // decides for itself whether the sentence just finished is worth probing -
+  // the user never has to select it and hit Probe. Scoped to Probe only:
+  // runIntelligence's trace branch requires nodes+edges, which this call site
+  // never supplies, so an AI decision of 'trace' or 'both' silently no-ops the
+  // trace half and can still surface a probe half. Anchored to a fixed spot
+  // below the draft (not floating over the text like the manual Probe card) so
+  // it never inherits the scroll-drift problem that card has.
+  const [ambient, setAmbient] = useState<{ start: number; end: number; text: string; question: string } | null>(null)
+  const lastScannedEndRef = useRef(0)
+
+  useEffect(() => {
+    lastScannedEndRef.current = Math.min(lastScannedEndRef.current, draftText.length)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
+  useEffect(() => {
+    if (lastScannedEndRef.current > draftText.length) lastScannedEndRef.current = draftText.length
+    const timer = setTimeout(() => { void maybeAutoSuggest() }, 4000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftText])
+
+  async function maybeAutoSuggest() {
+    if (ambient || probe) return // don't stack an unsolicited card over one already showing
+    const text = useStore.getState().draftText
+    const from = lastScannedEndRef.current
+    const rest = text.slice(from)
+    const termMatch = /[.!?](?!.*[.!?])/.exec(rest) // last sentence terminator in the unscanned tail
+    if (!termMatch) return // nothing complete to look at yet - wait for more typing
+    const end = from + termMatch.index + 1
+    const span = text.slice(from, end)
+    lastScannedEndRef.current = end // consume it either way - never re-ask about the same sentence
+    if (!isProbeEligible(span)) return
+    if (!tryConsumeAiCall()) return // respect the shared daily cap; fail silent, this was never requested
+    try {
+      const result = await runIntelligence({ context: 'linear_editor_selection', selectedText: span.trim() })
+      if (useStore.getState().draftText !== text) return // draft changed mid-flight - stale, drop it
+      const question = result.probe
+      if (question && !isNoneResponse(question)) {
+        setAmbient({ start: from, end, text: span.trim(), question })
+      }
+    } catch {
+      // Unsolicited suggestion - fail silent rather than surfacing an error
+      // the user never asked to see.
+    }
+  }
+
+  function handleSpawnFromAmbient() {
+    if (!ambient) return
+    const id = `probe-${Date.now()}`
+    addNode({
+      id,
+      label: ambient.question,
+      description: '',
+      organizer: 'point_of_tension',
+      centrality: 0.5,
+      parent_id: null,
+      current_focus: false,
+      last_reinforced_at: new Date().toISOString(),
+      provenance: 'ai_proposed_confirmed',
+      confidence: 2,
+    })
+    addTextAnchor({
+      id: `ta-${Date.now()}`,
+      node_id: id,
+      start: ambient.start,
+      end: ambient.end,
+      text: ambient.text,
+    })
+    setAmbient(null)
   }
 
   // Cmd+Shift+A - fires Probe while the text-selection surface is active (a
@@ -1015,7 +1097,7 @@ export function LinearView() {
     // ever reaches the textarea. Starting a fresh selection always clears it.
     setProbe(null)
     setSelection({ start, end, text })
-    setToolbar({ x, y })
+    setToolbar({ x, y, scrollTop: editorScrollTop })
   }
 
   function handleCreateNodeFromSelection() {
@@ -1051,11 +1133,34 @@ export function LinearView() {
           onSelectionCreate={handleSelectionCreate}
           onAnchorClick={id => setHighlightedNodeId(id)}
           onCaret={caret => { const { line, offset } = caretToLineOffset(draftText, caret); setCursorPos(line, offset) }}
+          onScrollTopChange={setEditorScrollTop}
           activeNodeId={highlightedNodeId}
           textareaRef={textareaRef}
         />
 
         <AnchorBadges onAnchorClick={id => setHighlightedNodeId(id)} activeNodeId={highlightedNodeId} />
+
+        {/* Ambient suggestion - Thread noticed something worth probing on its
+            own, no click required. Sits in normal document flow (not floating
+            over the draft) so it never needs the toolbar/Probe card's
+            scroll-drift correction. */}
+        {ambient && (
+          <div style={{
+            margin: 'var(--sp-2) var(--sp-4)', padding: 'var(--sp-2) var(--sp-3)',
+            border: '1px solid rgba(224, 107, 90, 0.4)', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-2)', flexShrink: 0,
+          }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: 'var(--sp-1)' }}>
+              Thread noticed something
+            </div>
+            <ProbeCard
+              status="done"
+              question={ambient.question}
+              onSpawn={handleSpawnFromAmbient}
+              onDismiss={() => setAmbient(null)}
+            />
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-2) var(--sp-4)', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>
@@ -1085,11 +1190,15 @@ export function LinearView() {
         <OutlinePanel highlightedNodeId={highlightedNodeId} onHighlight={setHighlightedNodeId} />
       </div>
 
-      {/* Floating selection toolbar */}
+      {/* Floating selection toolbar. Anchored in viewport coords captured at
+          selection time, but the editor scrolls internally underneath - the
+          scrollTop delta since creation is subtracted here so the toolbar (and
+          the Probe card below) stay glued to the text they belong to instead
+          of drifting away as the user scrolls while a Probe is in flight. */}
       {toolbar && (
         <>
           <SelectionToolbar
-            x={toolbar.x} y={toolbar.y}
+            x={toolbar.x} y={toolbar.y - (editorScrollTop - toolbar.scrollTop)}
             onCreateNode={handleCreateNodeFromSelection}
             showProbe={!!selection && isProbeEligible(selection.text)}
             onProbe={() => { if (selection && toolbar) startProbe(selection, toolbar) }}
@@ -1107,12 +1216,14 @@ export function LinearView() {
           made selecting a second nearby span silently do nothing. Re-enabling
           pointer events only on the actual rendered content (sized to fit it,
           not the full 320px) keeps the card clickable while everything beside
-          it reaches the textarea normally. */}
+          it reaches the textarea normally. Same scrollTop-delta correction as
+          the toolbar above - a Probe often takes long enough that the user has
+          scrolled by the time it resolves. */}
       {probe && (
         <div style={{
           position: 'fixed', zIndex: 60,
           left: Math.max(8, Math.min(probe.x - 40, window.innerWidth - 340)),
-          top: probe.y + 8,
+          top: probe.y - (editorScrollTop - probe.scrollTop) + 8,
           width: '320px',
           pointerEvents: 'none',
         }}>
