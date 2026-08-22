@@ -84,7 +84,8 @@ export function resolveLlmProvider(agent?: 'trace' | 'probe' | 'replay'): LlmPro
     name: 'groq',
     apiKey: process.env.GROQ_API_KEY ?? '',
     baseUrl: 'https://api.groq.com/openai/v1',
-    model: 'llama-3.3-70b-versatile',
+    // llama-3.3-70b-versatile was decommissioned by Groq (returns model_not_found)
+    model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     headers: {},
   }
 }

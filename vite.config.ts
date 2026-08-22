@@ -35,8 +35,9 @@ function resolveLlmProvider(env: Record<string, string>): LlmProvider {
     name: 'groq',
     apiKey: env.GROQ_API_KEY ?? '',
     baseUrl: 'https://api.groq.com/openai/v1',
-    model: 'llama-3.3-70b-versatile',
-    traceModel: 'llama-3.3-70b-versatile',
+    // llama-3.3-70b-versatile was decommissioned by Groq (returns model_not_found)
+    model: env.GROQ_MODEL || 'openai/gpt-oss-120b',
+    traceModel: env.GROQ_TRACE_MODEL || env.GROQ_MODEL || 'openai/gpt-oss-120b',
     headers: {},
   }
 }
@@ -88,7 +89,7 @@ function groqReplayProxy(): Plugin {
   let apiKey = ''
   let extraHeaders: Record<string, string> = {}
   let baseUrl = 'https://api.groq.com/openai/v1'
-  let model = 'llama-3.3-70b-versatile'
+  let model = 'openai/gpt-oss-120b'
 
   const systemToText = (system: unknown): string => {
     if (typeof system === 'string') return system
@@ -203,8 +204,8 @@ function groqChatProxy(): Plugin {
   // `model` serves Probe (clean model); `traceModel` serves Trace (stronger
   // reasoning model). Picked per request from the client's `agent` field. The
   // model the client sends in the request body is ignored on purpose.
-  let model = 'llama-3.3-70b-versatile'
-  let traceModel = 'llama-3.3-70b-versatile'
+  let model = 'openai/gpt-oss-120b'
+  let traceModel = 'openai/gpt-oss-120b'
 
   // The client sends `system` in Anthropic block-array form
   //   [{ type: 'text', text: '...', cache_control: {...} }]
