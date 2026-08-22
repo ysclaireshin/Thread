@@ -187,11 +187,20 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
 // Probe is offered here as a second option only when the selection is a
 // meaningful run - at least 20 chars AND spanning at least one complete
 // sentence. Below that threshold the Probe button is absent from the DOM.
-function SelectionToolbar({ x, y, onCreateNode, showProbe, onProbe }: {
+//
+// Buttons are sized well past the visual pill (44px min height/width - close
+// to Apple's touch-target guideline) because this toolbar sits over a
+// full-viewport dismiss layer (see the click-outside div at its call site):
+// a click that overshoots the small text label used to land on that layer
+// instead and silently blow away the whole toolbar + selection, forcing a
+// re-drag from scratch. Reported as "have to click and chase the probe
+// button, works on the 3rd-5th try."
+function SelectionToolbar({ toolbarRef, x, y, onCreateNode, showProbe, onProbe }: {
+  toolbarRef: React.RefObject<HTMLDivElement | null>
   x: number; y: number; onCreateNode: () => void; showProbe: boolean; onProbe: () => void
 }) {
   return (
-    <div style={{
+    <div ref={toolbarRef} style={{
       position: 'fixed', zIndex: 50,
       left: Math.max(8, x - 70), top: Math.max(8, y - 48),
       display: 'flex', alignItems: 'center',
@@ -203,7 +212,8 @@ function SelectionToolbar({ x, y, onCreateNode, showProbe, onProbe }: {
         onMouseDown={e => { e.preventDefault(); onCreateNode() }}
         style={{
           display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
-          padding: 'var(--sp-1) var(--sp-3)',
+          minHeight: '44px',
+          padding: 'var(--sp-2) var(--sp-4)',
           fontFamily: 'var(--font-sans)',
           fontSize: 'var(--text-11)',
           color: 'var(--core)',
@@ -220,7 +230,8 @@ function SelectionToolbar({ x, y, onCreateNode, showProbe, onProbe }: {
             onMouseDown={e => { e.preventDefault(); onProbe() }}
             style={{
               display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
-              padding: 'var(--sp-1) var(--sp-3)',
+              minHeight: '44px',
+              padding: 'var(--sp-2) var(--sp-4)',
               fontFamily: 'var(--font-sans)',
               fontSize: 'var(--text-11)',
               color: 'var(--tension)',
@@ -814,6 +825,7 @@ export function LinearView() {
   const { draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId } = useStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveButtonRef = useRef<HTMLDivElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
   const [toolbar, setToolbar] = useState<{ x: number; y: number; scrollTop: number } | null>(null)
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null)
@@ -1198,12 +1210,30 @@ export function LinearView() {
       {toolbar && (
         <>
           <SelectionToolbar
+            toolbarRef={toolbarRef}
             x={toolbar.x} y={toolbar.y - (editorScrollTop - toolbar.scrollTop)}
             onCreateNode={handleCreateNodeFromSelection}
             showProbe={!!selection && isProbeEligible(selection.text)}
             onProbe={() => { if (selection && toolbar) startProbe(selection, toolbar) }}
           />
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => { setToolbar(null); setSelection(null) }} />
+          {/* Dismiss-on-click-outside. A click that overshoots the toolbar by
+              only a few pixels is a near-miss, not "the user meant to dismiss
+              this" - ignoring clicks within a margin of the toolbar's own
+              rect (rather than dismissing on anything that isn't exactly on
+              the button) is what stops a slightly-off click from nuking the
+              whole toolbar + selection and forcing a re-drag. */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 49 }}
+            onClick={e => {
+              const r = toolbarRef.current?.getBoundingClientRect()
+              const margin = 16
+              if (r && e.clientX >= r.left - margin && e.clientX <= r.right + margin &&
+                  e.clientY >= r.top - margin && e.clientY <= r.bottom + margin) {
+                return // near-miss on the toolbar itself - ignore, don't dismiss
+              }
+              setToolbar(null); setSelection(null)
+            }}
+          />
         </>
       )}
 
