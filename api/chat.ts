@@ -96,6 +96,12 @@ export default async function handler(req: Req, res: Res): Promise<void> {
         // Clamped server-side: the client is untrusted and max_tokens is a
         // direct cost multiplier.
         max_tokens: clampMaxTokens(parsed.max_tokens, 1000),
+        // Groq's gpt-oss models are REASONING models: reasoning tokens count
+        // against max_tokens and at the default effort consume the whole budget,
+        // returning an EMPTY content string. 'low' keeps the reply inside budget;
+        // the reasoning stays in its own field and never leaks into the output.
+        // Harmless no-op on non-reasoning models.
+        ...(provider.model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
         temperature: parsed.temperature ?? 0,
       }),
     })

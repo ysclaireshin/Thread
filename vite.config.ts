@@ -142,6 +142,11 @@ function groqReplayProxy(): Plugin {
             model,
             messages: groqMessages,
             max_tokens: Math.min(Math.max(1, Number(parsed.max_tokens) || 1000), 2000),
+            // Groq's gpt-oss models are REASONING models: reasoning tokens count
+            // against max_tokens and at the default effort consume the whole
+            // budget, returning an EMPTY content string. 'low' keeps the reply
+            // inside budget; harmless no-op on non-reasoning models.
+            ...(model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
             temperature: parsed.temperature ?? 0,
           }),
         })
@@ -268,6 +273,11 @@ function groqChatProxy(): Plugin {
             // Clamped server-side: the client is untrusted, and an unbounded
             // max_tokens is a cost-amplification lever on a relayed API.
             max_tokens: Math.min(Math.max(1, Number(parsed.max_tokens) || 1000), 2000),
+            // Groq's gpt-oss models are REASONING models: reasoning tokens count
+            // against max_tokens and at the default effort consume the whole
+            // budget, returning an EMPTY content string. 'low' keeps the reply
+            // inside budget; harmless no-op on non-reasoning models.
+            ...(chosenModel.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
             temperature: parsed.temperature ?? 0,
           }),
         })
