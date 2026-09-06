@@ -918,8 +918,13 @@ export function LinearView() {
   const [ambient, setAmbient] = useState<{ start: number; end: number; text: string; question: string } | null>(null)
   const lastScannedEndRef = useRef(0)
 
+  // Skip whatever content the project already had - ambient Probe should only
+  // ever look at NEW text typed after a project loads. Without this, opening
+  // any project with an existing draft fired one Probe call 4s later over the
+  // ENTIRE pre-existing draft (the ref started at 0 and was never advanced past
+  // it), which could also exceed the server's request-size cap on a long draft.
   useEffect(() => {
-    lastScannedEndRef.current = Math.min(lastScannedEndRef.current, draftText.length)
+    lastScannedEndRef.current = draftText.length
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
