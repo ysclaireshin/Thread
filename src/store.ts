@@ -135,7 +135,33 @@ function saveAll(state: Store) {
 
 // ─── Store interface ──────────────────────────────────────────────────────────
 
-type ViewMode = 'system' | 'linear' | 'map'
+// The four atomic views the workspace can compose (Step 2 of the workspace/
+// view-slot redesign - see the architecture discussion for the full plan).
+// 'text' and 'nodes' are the split halves of the former single Linear view.
+export type ViewKind = 'text' | 'nodes' | 'map' | 'system'
+
+// Legacy 3-way UI vocabulary (System/Linear/Map), kept only at the boundary
+// so Topbar's existing toggle and FeedbackWidget's diagnostic payload don't
+// have to change shape yet. 'linear' means the fixed two-slot Text+Nodes
+// pairing - see Workspace.tsx for why that pairing still renders as one
+// pre-existing composition (LinearView) rather than two independent slots;
+// splitting it for real (a draggable divider, independent swapping) is a
+// later step.
+export type LegacyViewMode = 'system' | 'linear' | 'map'
+
+export function slotsForLegacyMode(mode: LegacyViewMode): ViewKind[] {
+  if (mode === 'system') return ['system']
+  if (mode === 'map') return ['map']
+  return ['text', 'nodes']
+}
+
+export function legacyModeForSlots(slots: ViewKind[]): LegacyViewMode {
+  if (slots.length === 1 && slots[0] === 'system') return 'system'
+  if (slots.length === 1 && slots[0] === 'map') return 'map'
+  return 'linear'
+}
+
+export interface WorkspaceState { slots: ViewKind[] }
 
 export interface ProjectMeta { id: string; name: string }
 
@@ -166,7 +192,7 @@ interface Store {
   // UI state
   selectedId: string | null
   focusMode: boolean
-  viewMode: ViewMode
+  workspace: WorkspaceState
   // ─── Flow (ephemeral, never persisted) ──────────────────────────────────
   flowGlowIds: string[]        // 2–3 most-recently-edited nodes from last session
   flowGlowVisible: boolean     // true during the 8s glow window, then fades out
@@ -185,7 +211,10 @@ interface Store {
   // Data actions
   setSelected: (id: string | null) => void
   setFocusMode: (v: boolean) => void
-  setViewMode: (v: ViewMode) => void
+  // Registry-driven: replaces the old single-scalar setViewMode. Still only
+  // ever holds one active configuration at a time (see Workspace.tsx) - this
+  // is a like-for-like data-model swap, not the multi-slot feature itself.
+  setWorkspaceSlots: (slots: ViewKind[]) => void
   setThesis: (t: string) => void
   setFocus: (id: string) => void
   setDraftText: (t: string) => void
@@ -238,7 +267,9 @@ export const useStore = create<Store>((set, get) => {
     _allProjects: all,
     selectedId: null,
     focusMode: true,
-    viewMode: 'linear',
+    // Reproduces the old default ('linear') exactly - Workspace.tsx renders
+    // this exact two-slot array through the pre-existing LinearView.
+    workspace: { slots: ['text', 'nodes'] },
     flowGlowIds: [],
     flowGlowVisible: false,
     flowActive: false,
@@ -347,7 +378,7 @@ export const useStore = create<Store>((set, get) => {
 
     setSelected: (id) => set({ selectedId: id }),
     setFocusMode: (v) => set({ focusMode: v }),
-    setViewMode: (v) => set({ viewMode: v }),
+    setWorkspaceSlots: (slots) => set({ workspace: { slots } }),
     setThesis: (t) => set({ thesis: t }),
     setDraftText: (t) => set({ draftText: t }),
     setGreetingStyle: (s) => set({ greetingStyle: s }),

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { Plus, Download, Upload, Pencil, ArrowLeft } from 'lucide-react'
-import { useStore } from '../store'
+import { useStore, slotsForLegacyMode, legacyModeForSlots } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
 import { greetingFromFocus } from '../types'
 import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
@@ -448,10 +448,15 @@ function AddPopover() {
 
 export function Topbar({ reentryLoading = false }: Props) {
   const {
-    nodes, edges, focusMode, setFocusMode, viewMode, setViewMode,
+    nodes, edges, focusMode, setFocusMode, workspace, setWorkspaceSlots,
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
     setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
+  // This toggle still speaks the old 3-way vocabulary (System/Linear/Map) -
+  // translate to/from the new ViewKind-based workspace.slots at this one
+  // boundary so nothing below has to change. See store.ts for what 'linear'
+  // maps to and why.
+  const viewMode = legacyModeForSlots(workspace.slots)
   const fileRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -469,7 +474,7 @@ export function Topbar({ reentryLoading = false }: Props) {
   function appendToDraft(text: string) {
     const current = useStore.getState().draftText
     setDraftText(current.trim() ? `${current}\n\n${text}` : text)
-    setViewMode('linear') // make sure the draft is visible
+    setWorkspaceSlots(slotsForLegacyMode('linear')) // make sure the draft is visible
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -579,7 +584,7 @@ export function Topbar({ reentryLoading = false }: Props) {
           {(['system', 'linear', 'map'] as const).map((mode) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              onClick={() => setWorkspaceSlots(slotsForLegacyMode(mode))}
               style={{
                 position: 'relative',
                 background: 'none',

@@ -1,13 +1,10 @@
 import { useEffect } from 'react'
 import { Topbar } from './components/Topbar'
-import { SystemView } from './components/SystemView'
-import { LinearView } from './components/LinearView'
-import { MapView } from './components/MapView'
+import { Workspace } from './components/Workspace'
 import { FeedbackWidget } from './components/FeedbackWidget'
 import { useStore, hydrateFromCloud } from './store'
 
 export default function App() {
-  const viewMode = useStore(s => s.viewMode)
   const projectId = useStore(s => s.projectId)
   const activateFlow = useStore(s => s.activateFlow)
   const fadeFlowGlow = useStore(s => s.fadeFlowGlow)
@@ -35,13 +32,7 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--canvas)', color: 'var(--text-primary)', overflow: 'hidden' }}>
       <Topbar onAddNode={() => {}} />
       <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {viewMode === 'system' ? (
-          <SystemView />
-        ) : viewMode === 'linear' ? (
-          <LinearView />
-        ) : (
-          <MapView />
-        )}
+        <Workspace />
       </div>
       <FeedbackWidget />
     </div>
