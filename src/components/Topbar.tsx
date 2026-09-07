@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { Plus, Download, Upload, Pencil, ArrowLeft } from 'lucide-react'
+import { Plus, Download, Upload, Pencil, ArrowLeft, ArrowLeftRight, ChevronDown, X } from 'lucide-react'
 import { useStore, type ViewKind } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
 import { greetingFromFocus } from '../types'
@@ -446,31 +446,154 @@ function AddPopover() {
 
 // ─── Main Topbar ──────────────────────────────────────────────────────────────
 
-// This toggle still speaks the old 3-way vocabulary (System/Linear/Map) -
-// there's no view picker yet for freely assigning ViewKinds to slots, so
-// these are the only three slot combinations the app can currently produce.
-// 'linear' is the fixed Text+Nodes pairing; splitting it into two truly
-// independent, freely-swappable slots is a later step (Workspace.tsx already
-// renders it as two real slots with a resizable divider - this toggle just
-// can't yet ask for anything OTHER than this fixed pairing).
-type TogglePreset = 'system' | 'linear' | 'map'
-const TOGGLE_PRESETS: Record<TogglePreset, ViewKind[]> = {
-  system: ['system'],
-  linear: ['text', 'nodes'],
-  map: ['map'],
+// Fixed display order for every view-kind picker below.
+const VIEW_KIND_ORDER: ViewKind[] = ['text', 'nodes', 'map', 'system']
+const VIEW_LABELS: Record<ViewKind, string> = {
+  text: 'Text', nodes: 'Nodes', map: 'Map', system: 'System',
 }
 
-// Which of the three buttons (if any) matches the current workspace exactly.
-// null when the active slots don't correspond to one of these presets (not
-// reachable via this toggle today, but the workspace itself already supports
-// arbitrary combinations) - no button falsely claims to be "active" for a
-// combination it doesn't represent.
-function activeTogglePreset(slots: ViewKind[]): TogglePreset | null {
-  for (const key of Object.keys(TOGGLE_PRESETS) as TogglePreset[]) {
-    const preset = TOGGLE_PRESETS[key]
-    if (preset.length === slots.length && preset.every(k => slots.includes(k))) return key
+// Ensures `view` is one of the active slots, changing as little as possible:
+// leaves the workspace untouched if it's already visible; otherwise swaps it
+// into a single-slot workspace, or replaces the FIRST slot of a two-slot one
+// (keeping the second view and the split as they were). Used by file import
+// to guarantee the draft becomes visible regardless of what's currently on
+// screen - the workspace-level replacement for the old "always switch to
+// Linear" behavior.
+function ensureViewVisible(slots: ViewKind[], view: ViewKind): ViewKind[] {
+  if (slots.includes(view)) return slots
+  if (slots.length < 2) return [view]
+  return [view, slots[1]]
+}
+
+// ─── Slot picker ──────────────────────────────────────────────────────────────
+// One workspace slot's view-picker: a small dropdown listing all four
+// ViewKinds, with whichever kind the OTHER slot already holds disabled so the
+// unique-view constraint can't even be attempted through this control (the
+// store's own normalizeSlots still enforces it defensively either way).
+function SlotPicker({ value, disabledKind, onSelect }: {
+  value: ViewKind
+  disabledKind: ViewKind | null
+  onSelect: (kind: ViewKind) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        title="Choose which view this pane shows"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '6px',
+          padding: '4px 8px', fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-primary)',
+          cursor: 'pointer', whiteSpace: 'nowrap',
+        }}
+      >
+        {VIEW_LABELS[value]}
+        <ChevronDown size={11} style={{ color: 'var(--text-tertiary)' }} />
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', right: 0, zIndex: 100,
+            minWidth: '120px', background: 'var(--surface-2)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)', padding: '6px',
+          }}>
+            {VIEW_KIND_ORDER.map(kind => {
+              const disabled = kind === disabledKind
+              return (
+                <button
+                  key={kind}
+                  disabled={disabled}
+                  onClick={() => { onSelect(kind); setOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+                    width: '100%', textAlign: 'left', padding: '6px 10px',
+                    background: kind === value ? 'var(--surface-3)' : 'none', border: 'none',
+                    borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)',
+                    color: disabled ? 'var(--text-disabled)' : kind === value ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    cursor: disabled ? 'default' : 'pointer',
+                  }}
+                >
+                  {VIEW_LABELS[kind]}
+                  {kind === value && <span style={{ color: 'var(--core)', fontSize: 'var(--text-11)' }}>active</span>}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Workspace picker ─────────────────────────────────────────────────────────
+// Replaces the old System/Linear/Map segmented toggle. One or two SlotPickers
+// (one per active workspace slot) plus explicit controls to add/remove the
+// second slot and swap the two views. No drag-and-drop yet - explicit
+// picker/menu controls only (a later step adds drag-and-drop on top of this).
+function WorkspacePicker() {
+  const slots = useStore(s => s.workspace.slots)
+  const setWorkspaceSlots = useStore(s => s.setWorkspaceSlots)
+
+  const iconBtnStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '22px', height: '22px', flexShrink: 0,
+    background: 'none', border: '1px solid var(--border)', borderRadius: '6px',
+    color: 'var(--text-tertiary)', cursor: 'pointer',
   }
-  return null
+
+  if (slots.length === 1) {
+    const [current] = slots
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <SlotPicker value={current} disabledKind={null} onSelect={kind => setWorkspaceSlots([kind])} />
+        <button
+          onClick={() => {
+            // First ViewKind not already showing - a sensible, predictable
+            // default for the new second pane until the user picks otherwise.
+            const other = VIEW_KIND_ORDER.find(k => k !== current) ?? 'nodes'
+            setWorkspaceSlots([current, other])
+          }}
+          title="Add a second view"
+          style={iconBtnStyle}
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+    )
+  }
+
+  const [first, second] = slots
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <SlotPicker value={first} disabledKind={second} onSelect={kind => setWorkspaceSlots([kind, second])} />
+      <button onClick={() => setWorkspaceSlots([second, first])} title="Swap the two views" style={iconBtnStyle}>
+        <ArrowLeftRight size={12} />
+      </button>
+      <SlotPicker value={second} disabledKind={first} onSelect={kind => setWorkspaceSlots([first, kind])} />
+      <button onClick={() => setWorkspaceSlots([first])} title="Remove second view" style={iconBtnStyle}>
+        <X size={12} />
+      </button>
+    </div>
+  )
 }
 
 export function Topbar({ reentryLoading = false }: Props) {
@@ -479,7 +602,6 @@ export function Topbar({ reentryLoading = false }: Props) {
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
     setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
-  const activeToggle = activeTogglePreset(workspace.slots)
   const fileRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -497,7 +619,7 @@ export function Topbar({ reentryLoading = false }: Props) {
   function appendToDraft(text: string) {
     const current = useStore.getState().draftText
     setDraftText(current.trim() ? `${current}\n\n${text}` : text)
-    setWorkspaceSlots(TOGGLE_PRESETS.linear) // make sure the draft is visible
+    setWorkspaceSlots(ensureViewVisible(workspace.slots, 'text')) // make sure the draft is visible
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -536,17 +658,18 @@ export function Topbar({ reentryLoading = false }: Props) {
     zIndex: 20,
   }
 
-  const viewToggleBtn = (mode: 'system' | 'linear' | 'map', _label: string): React.CSSProperties => ({
+  // color/fontWeight are always overridden at the call sites below (each
+  // passes its own focusMode-driven values right after spreading this in) -
+  // this just supplies the shared base look.
+  const viewToggleBtnBase: React.CSSProperties = {
     background: 'none',
     border: 'none',
     fontFamily: 'var(--font-sans)',
     fontSize: 'var(--text-13)',
     letterSpacing: '0.03em',
-    color: activeToggle === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
-    fontWeight: activeToggle === mode ? 500 : 400,
     cursor: 'pointer',
     padding: '2px 4px',
-  })
+  }
 
   return (
     <div style={{ flexShrink: 0, zIndex: 20 }}>
@@ -602,57 +725,22 @@ export function Topbar({ reentryLoading = false }: Props) {
           )}
         </div>
 
-        {/* System / Linear / Map toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', position: 'relative', padding: '2px', borderRadius: '6px', background: 'var(--surface-2)' }}>
-          {(['system', 'linear', 'map'] as const).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setWorkspaceSlots(TOGGLE_PRESETS[mode])}
-              style={{
-                position: 'relative',
-                background: 'none',
-                border: 'none',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '11px',
-                color: activeToggle === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                cursor: 'pointer',
-                padding: '4px 10px',
-                borderRadius: '4px',
-                zIndex: 1,
-                transition: 'color 150ms',
-              }}
-            >
-              {activeToggle === mode && (
-                <motion.div
-                  layoutId='tab-highlight'
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    borderRadius: '4px',
-                    background: 'var(--surface-4)',
-                    zIndex: -1,
-                  }}
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.25 }}
-                />
-              )}
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </button>
-          ))}
-        </div>
+        {/* Workspace view-picker - replaces the old System/Linear/Map toggle */}
+        <WorkspacePicker />
 
-        {/* Focus toggle (system view only) */}
-        {activeToggle === 'system' && (
+        {/* Focus toggle - shown whenever System occupies either slot */}
+        {workspace.slots.includes('system') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)', borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
             <button
               onClick={() => setFocusMode(true)}
-              style={{ ...viewToggleBtn('system', ''), color: focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: focusMode ? 500 : 400 }}
+              style={{ ...viewToggleBtnBase, color: focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: focusMode ? 500 : 400 }}
             >
               Focus
             </button>
             <span style={{ color: 'var(--text-disabled)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)' }}>/</span>
             <button
               onClick={() => setFocusMode(false)}
-              style={{ ...viewToggleBtn('system', ''), color: !focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: !focusMode ? 500 : 400 }}
+              style={{ ...viewToggleBtnBase, color: !focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: !focusMode ? 500 : 400 }}
             >
               Full
             </button>
