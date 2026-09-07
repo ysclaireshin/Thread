@@ -938,6 +938,61 @@ function GraphCanvas({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes.length, links.length])
 
+  // Keep the simulation centered when the SVG's own size changes - e.g. the
+  // workspace split divider being dragged, or the window resizing. The setup
+  // effect above only measures width/height ONCE per (re)initialization, so
+  // without this the forceCenter target and every node's position stay
+  // pinned to whatever bounds were measured back then: a resized viewport
+  // drifts the graph off-center (or clips it) instead of staying centered in
+  // its new bounds. Independent of the setup effect - reads simRef.current
+  // fresh on every resize, so it stays correct across re-initializations.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    let prevWidth = svg.clientWidth
+    let prevHeight = svg.clientHeight
+    let settleFrame = 0
+    const ro = new ResizeObserver(entries => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width <= 0 || height <= 0) return
+      const sim = simRef.current
+      if (sim) {
+        const dx = (width - prevWidth) / 2
+        const dy = (height - prevHeight) / 2
+        if (dx !== 0 || dy !== 0) {
+          sim.nodes().forEach(n => { n.x = (n.x ?? 0) + dx; n.y = (n.y ?? 0) + dy })
+        }
+        const centerForce = sim.force('center') as ReturnType<typeof forceCenter<GraphNode>> | undefined
+        centerForce?.x(width / 2).y(height / 2)
+
+        // Snap the visible positions immediately - the RAF tick loop from
+        // the initial layout has usually already stopped by the time a
+        // resize happens, so waiting on it would leave the graph visibly
+        // off-center until the next unrelated re-render.
+        const snap = new Map<string, { x: number; y: number }>()
+        sim.nodes().forEach(n => snap.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 }))
+        setPositions(snap)
+
+        // Let forces relax a little further into the new bounds.
+        sim.alpha(0.05).restart()
+        cancelAnimationFrame(settleFrame)
+        const settle = () => {
+          const map = new Map<string, { x: number; y: number }>()
+          sim.nodes().forEach(n => map.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 }))
+          setPositions(map)
+          if (sim.alpha() > 0.001) settleFrame = requestAnimationFrame(settle)
+        }
+        settleFrame = requestAnimationFrame(settle)
+      }
+      prevWidth = width
+      prevHeight = height
+    })
+    ro.observe(svg)
+    return () => { ro.disconnect(); cancelAnimationFrame(settleFrame) }
+  }, [])
+
   // Convert screen coords to graph coords
   const toGraphCoords = (clientX: number, clientY: number) => {
     const svgRect = svgRef.current?.getBoundingClientRect()
@@ -1779,6 +1834,52 @@ function ExpandedMap({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes.length, links.length])
+
+  // Keep the simulation centered when the SVG's own size changes - e.g. the
+  // workspace split divider being dragged, or the window resizing. Same fix
+  // as GraphCanvas's equivalent effect above; see its comment for why this
+  // needs to be independent of the setup effect.
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    let prevWidth = svg.clientWidth
+    let prevHeight = svg.clientHeight
+    let settleFrame = 0
+    const ro = new ResizeObserver(entries => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      if (width <= 0 || height <= 0) return
+      const sim = simRef.current
+      if (sim) {
+        const dx = (width - prevWidth) / 2
+        const dy = (height - prevHeight) / 2
+        if (dx !== 0 || dy !== 0) {
+          sim.nodes().forEach(n => { n.x = (n.x ?? 0) + dx; n.y = (n.y ?? 0) + dy })
+        }
+        const centerForce = sim.force('center') as ReturnType<typeof forceCenter<ExpNode>> | undefined
+        centerForce?.x(width / 2).y(height / 2)
+
+        const snap = new Map<string, { x: number; y: number }>()
+        sim.nodes().forEach(n => snap.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 }))
+        setPositions(snap)
+
+        sim.alpha(0.05).restart()
+        cancelAnimationFrame(settleFrame)
+        const settle = () => {
+          const map = new Map<string, { x: number; y: number }>()
+          sim.nodes().forEach(n => map.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 }))
+          setPositions(map)
+          if (sim.alpha() > 0.001) settleFrame = requestAnimationFrame(settle)
+        }
+        settleFrame = requestAnimationFrame(settle)
+      }
+      prevWidth = width
+      prevHeight = height
+    })
+    ro.observe(svg)
+    return () => { ro.disconnect(); cancelAnimationFrame(settleFrame) }
+  }, [])
 
   const toGraph = (clientX: number, clientY: number) => {
     const r = svgRef.current?.getBoundingClientRect()

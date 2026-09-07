@@ -8,12 +8,15 @@ import { OrganizerLegend } from './OrganizerLegend'
 import { ReentryCard } from './ReentryCard'
 
 // ─── Nodes view ───────────────────────────────────────────────────────────────
-// Extracted from the former LinearView (Step 1 of the workspace/view-slot
-// redesign - structural refactor only, no behavior or visual change). This is
-// the outline/node-list half: the category legend, re-entry card, session
-// dividers, and the node rows themselves. highlightedNodeId is owned by the
-// parent (LinearView) because both this view and TextView read/write it - see
-// TextView.tsx for the other half.
+// An independently mountable workspace view (Step 3 of the workspace/
+// view-slot redesign): the outline/node-list half of what used to be the
+// single Linear view - the category legend, re-entry card, session dividers,
+// and the node rows themselves. highlightedNodeId lives in the shared store
+// (not local/prop state) so this component and TextView can cross-reference
+// each other whenever both happen to be mounted, without requiring a common
+// parent to broker it - see TextView.tsx for the other half. Internally it's
+// still threaded down through OutlinePanel/NodeRow as a plain prop, same as
+// before.
 
 // ─── Staleness ────────────────────────────────────────────────────────────────
 
@@ -540,16 +543,11 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
 
 // ─── Main NodesView ───────────────────────────────────────────────────────────
 
-interface NodesViewProps {
-  highlightedNodeId: string | null
-  onHighlight: (id: string | null) => void
-}
-
-export function NodesView({ highlightedNodeId, onHighlight }: NodesViewProps) {
-  const { nodes } = useStore()
+export function NodesView() {
+  const { nodes, highlightedNodeId, setHighlightedNodeId } = useStore()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '45%', minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Outline</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
@@ -565,7 +563,7 @@ export function NodesView({ highlightedNodeId, onHighlight }: NodesViewProps) {
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>{nodes.filter(n => !n.resolved && !n.superseded_by).length} nodes</span>
         </span>
       </div>
-      <OutlinePanel highlightedNodeId={highlightedNodeId} onHighlight={onHighlight} />
+      <OutlinePanel highlightedNodeId={highlightedNodeId} onHighlight={setHighlightedNodeId} />
     </div>
   )
 }

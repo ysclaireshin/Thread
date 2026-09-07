@@ -135,33 +135,43 @@ function saveAll(state: Store) {
 
 // ─── Store interface ──────────────────────────────────────────────────────────
 
-// The four atomic views the workspace can compose (Step 2 of the workspace/
-// view-slot redesign - see the architecture discussion for the full plan).
-// 'text' and 'nodes' are the split halves of the former single Linear view.
+// The four atomic views the workspace can compose (workspace/view-slot
+// redesign). 'text' and 'nodes' are the split halves of the former single
+// Linear view - Step 3 makes them genuinely independent slots, not a
+// hardcoded pairing (see Workspace.tsx).
 export type ViewKind = 'text' | 'nodes' | 'map' | 'system'
 
-// Legacy 3-way UI vocabulary (System/Linear/Map), kept only at the boundary
-// so Topbar's existing toggle and FeedbackWidget's diagnostic payload don't
-// have to change shape yet. 'linear' means the fixed two-slot Text+Nodes
-// pairing - see Workspace.tsx for why that pairing still renders as one
-// pre-existing composition (LinearView) rather than two independent slots;
-// splitting it for real (a draggable divider, independent swapping) is a
-// later step.
-export type LegacyViewMode = 'system' | 'linear' | 'map'
-
-export function slotsForLegacyMode(mode: LegacyViewMode): ViewKind[] {
-  if (mode === 'system') return ['system']
-  if (mode === 'map') return ['map']
-  return ['text', 'nodes']
+export interface WorkspaceState {
+  slots: ViewKind[]    // always length 1 or 2, never empty, never duplicated - see normalizeSlots
+  splitRatio: number   // first slot's share of width when slots.length === 2; clamped in (0.1, 0.9)
 }
 
-export function legacyModeForSlots(slots: ViewKind[]): LegacyViewMode {
-  if (slots.length === 1 && slots[0] === 'system') return 'system'
-  if (slots.length === 1 && slots[0] === 'map') return 'map'
-  return 'linear'
+// The one chokepoint every caller (today's Topbar toggle, a future view
+// picker, eventually drag-and-drop) funnels through, so slot validation only
+// needs to live in one place: no duplicates, at most 2 entries, never empty.
+function normalizeSlots(slots: ViewKind[]): ViewKind[] {
+  const unique = [...new Set(slots)].slice(0, 2)
+  return unique.length > 0 ? unique : ['text']
 }
 
-export interface WorkspaceState { slots: ViewKind[] }
+const MIN_SPLIT_RATIO = 0.1
+function clampSplitRatio(ratio: number): number {
+  if (!Number.isFinite(ratio)) return 0.55
+  return Math.min(1 - MIN_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, ratio))
+}
+
+// A short, honest label for the active workspace - used only by
+// FeedbackWidget's diagnostic payload. Unlike the old legacyModeForSlots (Step
+// 2), this never silently mislabels a combination it doesn't specifically
+// recognize: only the one fixed pairing Topbar's toggle can still produce
+// ('text'+'nodes', labeled 'linear' for continuity with past reports) gets a
+// special name: everything else - including combinations no UI can reach yet
+// - reports its own accurate "kind" or "kind+kind" description.
+export function describeWorkspace(slots: ViewKind[]): string {
+  if (slots.length === 1) return slots[0]
+  if (slots.length === 2 && slots.includes('text') && slots.includes('nodes')) return 'linear'
+  return slots.join('+')
+}
 
 export interface ProjectMeta { id: string; name: string }
 
@@ -193,6 +203,11 @@ interface Store {
   selectedId: string | null
   focusMode: boolean
   workspace: WorkspaceState
+  // Shared ephemeral highlight: lets TextView and NodesView cross-reference
+  // each other (an anchor click highlights + scrolls to a node row, and vice
+  // versa) whenever both happen to be mounted, without needing a common
+  // parent to broker it. Not persisted.
+  highlightedNodeId: string | null
   // ─── Flow (ephemeral, never persisted) ──────────────────────────────────
   flowGlowIds: string[]        // 2–3 most-recently-edited nodes from last session
   flowGlowVisible: boolean     // true during the 8s glow window, then fades out
@@ -211,10 +226,10 @@ interface Store {
   // Data actions
   setSelected: (id: string | null) => void
   setFocusMode: (v: boolean) => void
-  // Registry-driven: replaces the old single-scalar setViewMode. Still only
-  // ever holds one active configuration at a time (see Workspace.tsx) - this
-  // is a like-for-like data-model swap, not the multi-slot feature itself.
+  // Registry-driven workspace: 1 or 2 independently-mountable slots.
   setWorkspaceSlots: (slots: ViewKind[]) => void
+  setSplitRatio: (ratio: number) => void
+  setHighlightedNodeId: (id: string | null) => void
   setThesis: (t: string) => void
   setFocus: (id: string) => void
   setDraftText: (t: string) => void
@@ -267,9 +282,11 @@ export const useStore = create<Store>((set, get) => {
     _allProjects: all,
     selectedId: null,
     focusMode: true,
-    // Reproduces the old default ('linear') exactly - Workspace.tsx renders
-    // this exact two-slot array through the pre-existing LinearView.
-    workspace: { slots: ['text', 'nodes'] },
+    // Reproduces the old default ('linear') exactly - a real two-slot
+    // Text+Nodes layout, split 55/45 as before, now genuinely independent
+    // and resizable rather than a hardcoded composition.
+    workspace: { slots: ['text', 'nodes'], splitRatio: 0.55 },
+    highlightedNodeId: null,
     flowGlowIds: [],
     flowGlowVisible: false,
     flowActive: false,
@@ -378,7 +395,9 @@ export const useStore = create<Store>((set, get) => {
 
     setSelected: (id) => set({ selectedId: id }),
     setFocusMode: (v) => set({ focusMode: v }),
-    setWorkspaceSlots: (slots) => set({ workspace: { slots } }),
+    setWorkspaceSlots: (slots) => set(s => ({ workspace: { ...s.workspace, slots: normalizeSlots(slots) } })),
+    setSplitRatio: (ratio) => set(s => ({ workspace: { ...s.workspace, splitRatio: clampSplitRatio(ratio) } })),
+    setHighlightedNodeId: (id) => set({ highlightedNodeId: id }),
     setThesis: (t) => set({ thesis: t }),
     setDraftText: (t) => set({ draftText: t }),
     setGreetingStyle: (s) => set({ greetingStyle: s }),

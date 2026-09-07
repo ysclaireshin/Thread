@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { MessageSquare, X } from 'lucide-react'
 import { submitFeedback } from '../lib/supabaseSync'
-import { useStore, legacyModeForSlots } from '../store'
+import { useStore, describeWorkspace } from '../store'
 
 // Open-ended nudges shown under the "Any feedback?" label - never separate
 // fields, just a rotating hint so the one textarea doesn't stare back blank.
@@ -56,9 +56,11 @@ export function FeedbackWidget() {
   const statusId = useId()
   const emailId = useId()
 
-  // Diagnostic payload keeps reporting the old 3-way label - translate from
-  // the new workspace.slots so the report shape/values stay unchanged.
-  const viewMode = useStore(s => legacyModeForSlots(s.workspace.slots))
+  // Diagnostic payload field name kept as `viewMode` for continuity with past
+  // reports; its value now comes from describeWorkspace, which stays
+  // accurate for any workspace combination instead of forcing everything
+  // into the old 3-way vocabulary.
+  const viewMode = useStore(s => describeWorkspace(s.workspace.slots))
   const projectId = useStore(s => s.projectId)
 
   function openPanel() {

@@ -11,12 +11,14 @@ import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 
 // ─── Text view ──────────────────────────────────────────────────────────────
-// Extracted from the former LinearView (Step 1 of the workspace/view-slot
-// redesign - structural refactor only, no behavior or visual change). This is
-// the draft editor half: the textarea + anchor highlights, the floating
-// selection toolbar, Probe (manual + ambient), and the "Save my place" flow.
-// highlightedNodeId is owned by the parent (LinearView) because both this view
-// and NodesView read/write it - see NodesView.tsx for the other half.
+// An independently mountable workspace view (Step 3 of the workspace/
+// view-slot redesign): the draft editor half of what used to be the single
+// Linear view - the textarea + anchor highlights, the floating selection
+// toolbar, Probe (manual + ambient), and the "Save my place" flow.
+// highlightedNodeId lives in the shared store (not local/prop state) so this
+// component and NodesView can cross-reference each other whenever both
+// happen to be mounted, without requiring a common parent to broker it - see
+// NodesView.tsx for the other half.
 
 // A selection is Probe-eligible only when it is a meaningful run: at least 20
 // characters (ignores accidental single-word grabs) AND contains at least one
@@ -312,13 +314,11 @@ function lineOffsetToCaret(text: string, line: number, offset: number): number {
 // Approx line height: font-size 14px × line-height 1.65 (see EditorWithHighlights).
 const EDITOR_LINE_HEIGHT = 14 * 1.65
 
-interface TextViewProps {
-  highlightedNodeId: string | null
-  onHighlight: (id: string | null) => void
-}
-
-export function TextView({ highlightedNodeId, onHighlight }: TextViewProps) {
-  const { draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId } = useStore()
+export function TextView() {
+  const {
+    draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId,
+    highlightedNodeId, setHighlightedNodeId,
+  } = useStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveButtonRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -628,7 +628,7 @@ export function TextView({ highlightedNodeId, onHighlight }: TextViewProps) {
 
   return (
     <>
-      <div className="draft-editor-container" style={{ display: 'flex', flexDirection: 'column', width: '55%', minWidth: 0, borderRight: '1px solid var(--border)', position: 'relative' }}>
+      <div className="draft-editor-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, position: 'relative' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Draft</span>
@@ -641,14 +641,14 @@ export function TextView({ highlightedNodeId, onHighlight }: TextViewProps) {
           value={draftText}
           onChange={setDraftText}
           onSelectionCreate={handleSelectionCreate}
-          onAnchorClick={id => onHighlight(id)}
+          onAnchorClick={id => setHighlightedNodeId(id)}
           onCaret={caret => { const { line, offset } = caretToLineOffset(draftText, caret); setCursorPos(line, offset) }}
           onScrollTopChange={setEditorScrollTop}
           activeNodeId={highlightedNodeId}
           textareaRef={textareaRef}
         />
 
-        <AnchorBadges onAnchorClick={id => onHighlight(id)} activeNodeId={highlightedNodeId} />
+        <AnchorBadges onAnchorClick={id => setHighlightedNodeId(id)} activeNodeId={highlightedNodeId} />
 
         {/* Ambient suggestion - Thread noticed something worth probing on its
             own, no click required. Sits in normal document flow (not floating

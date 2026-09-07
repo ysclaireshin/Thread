@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { Plus, Download, Upload, Pencil, ArrowLeft } from 'lucide-react'
-import { useStore, slotsForLegacyMode, legacyModeForSlots } from '../store'
+import { useStore, type ViewKind } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
 import { greetingFromFocus } from '../types'
 import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
@@ -446,17 +446,40 @@ function AddPopover() {
 
 // ─── Main Topbar ──────────────────────────────────────────────────────────────
 
+// This toggle still speaks the old 3-way vocabulary (System/Linear/Map) -
+// there's no view picker yet for freely assigning ViewKinds to slots, so
+// these are the only three slot combinations the app can currently produce.
+// 'linear' is the fixed Text+Nodes pairing; splitting it into two truly
+// independent, freely-swappable slots is a later step (Workspace.tsx already
+// renders it as two real slots with a resizable divider - this toggle just
+// can't yet ask for anything OTHER than this fixed pairing).
+type TogglePreset = 'system' | 'linear' | 'map'
+const TOGGLE_PRESETS: Record<TogglePreset, ViewKind[]> = {
+  system: ['system'],
+  linear: ['text', 'nodes'],
+  map: ['map'],
+}
+
+// Which of the three buttons (if any) matches the current workspace exactly.
+// null when the active slots don't correspond to one of these presets (not
+// reachable via this toggle today, but the workspace itself already supports
+// arbitrary combinations) - no button falsely claims to be "active" for a
+// combination it doesn't represent.
+function activeTogglePreset(slots: ViewKind[]): TogglePreset | null {
+  for (const key of Object.keys(TOGGLE_PRESETS) as TogglePreset[]) {
+    const preset = TOGGLE_PRESETS[key]
+    if (preset.length === slots.length && preset.every(k => slots.includes(k))) return key
+  }
+  return null
+}
+
 export function Topbar({ reentryLoading = false }: Props) {
   const {
     nodes, edges, focusMode, setFocusMode, workspace, setWorkspaceSlots,
     greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
     setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
-  // This toggle still speaks the old 3-way vocabulary (System/Linear/Map) -
-  // translate to/from the new ViewKind-based workspace.slots at this one
-  // boundary so nothing below has to change. See store.ts for what 'linear'
-  // maps to and why.
-  const viewMode = legacyModeForSlots(workspace.slots)
+  const activeToggle = activeTogglePreset(workspace.slots)
   const fileRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState<string | null>(null)
@@ -474,7 +497,7 @@ export function Topbar({ reentryLoading = false }: Props) {
   function appendToDraft(text: string) {
     const current = useStore.getState().draftText
     setDraftText(current.trim() ? `${current}\n\n${text}` : text)
-    setWorkspaceSlots(slotsForLegacyMode('linear')) // make sure the draft is visible
+    setWorkspaceSlots(TOGGLE_PRESETS.linear) // make sure the draft is visible
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -519,8 +542,8 @@ export function Topbar({ reentryLoading = false }: Props) {
     fontFamily: 'var(--font-sans)',
     fontSize: 'var(--text-13)',
     letterSpacing: '0.03em',
-    color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
-    fontWeight: viewMode === mode ? 500 : 400,
+    color: activeToggle === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
+    fontWeight: activeToggle === mode ? 500 : 400,
     cursor: 'pointer',
     padding: '2px 4px',
   })
@@ -584,14 +607,14 @@ export function Topbar({ reentryLoading = false }: Props) {
           {(['system', 'linear', 'map'] as const).map((mode) => (
             <button
               key={mode}
-              onClick={() => setWorkspaceSlots(slotsForLegacyMode(mode))}
+              onClick={() => setWorkspaceSlots(TOGGLE_PRESETS[mode])}
               style={{
                 position: 'relative',
                 background: 'none',
                 border: 'none',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '11px',
-                color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                color: activeToggle === mode ? 'var(--text-primary)' : 'var(--text-tertiary)',
                 cursor: 'pointer',
                 padding: '4px 10px',
                 borderRadius: '4px',
@@ -599,7 +622,7 @@ export function Topbar({ reentryLoading = false }: Props) {
                 transition: 'color 150ms',
               }}
             >
-              {viewMode === mode && (
+              {activeToggle === mode && (
                 <motion.div
                   layoutId='tab-highlight'
                   style={{
@@ -618,7 +641,7 @@ export function Topbar({ reentryLoading = false }: Props) {
         </div>
 
         {/* Focus toggle (system view only) */}
-        {viewMode === 'system' && (
+        {activeToggle === 'system' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)', borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
             <button
               onClick={() => setFocusMode(true)}
