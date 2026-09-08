@@ -41,37 +41,43 @@
 }
 
 @theme {
-  --font-sans: 'Geist', -apple-system, sans-serif;
-  --font-mono: 'Geist', -apple-system, sans-serif;
+  --font-sans: 'Rubik', -apple-system, sans-serif;
+  --font-mono: 'Rubik', -apple-system, sans-serif;
 }
 
 :root {
-  --canvas:     #08090A;
-  --surface-1:  #0F1011;
-  --surface-2:  #141516;
-  --surface-3:  #1C1D1F;
-  --surface-4:  #232425;
+  /* ─── Step 5 visual redesign — values are authoritative from the Penpot
+     source of truth (see Topbar/TextView/NodesView redesign, 2026-09).
+     Map and System keep reading these same shared tokens (no dedicated
+     tokens of their own), so they inherit this palette/type refresh as a
+     byproduct of "centralize reusable design values" — their own layouts
+     are untouched. */
+  --canvas:     #15111E;
+  --surface-1:  #201B2A;
+  --surface-2:  #2A2438;
+  --surface-3:  #332C44;
+  --surface-4:  #3D3550;
 
-  --border:        #232425;
-  --border-subtle: #1A1B1C;
+  --border:        rgba(184, 175, 188, 0.3);
+  --border-subtle: rgba(184, 175, 188, 0.15);
 
-  --text-primary:   #E8E6DC;
-  --text-secondary: #9A9893;
-  --text-tertiary:  #5C5B58;
-  --text-disabled:  #3A3938;
-  --text-inverted:  #08090A;
+  --text-primary:   #F1EBED;
+  --text-secondary: #B8AFBC;
+  --text-tertiary:  #B8AFBC;
+  --text-disabled:  rgba(184, 175, 188, 0.5);
+  --text-inverted:  #15111E;
 
-  --core:        #4CC9A0;
-  --core-dim:    #0D2B22;
-  --core-mid:    #1A4A3A;
+  --core:        #879A78;
+  --core-dim:    rgba(135, 154, 120, 0.14);
+  --core-mid:    rgba(135, 154, 120, 0.35);
 
-  --tension:     #E06B5A;
-  --tension-dim: #2A100D;
-  --tension-mid: #4A1F1A;
+  --tension:     #A96F7C;
+  --tension-dim: rgba(169, 111, 124, 0.14);
+  --tension-mid: rgba(169, 111, 124, 0.35);
 
-  --open:        #E8A84A;
-  --open-dim:    #2A1D08;
-  --open-mid:    #4A3010;
+  --open:        #DEA64B;
+  --open-dim:    rgba(222, 166, 75, 0.14);
+  --open-mid:    rgba(222, 166, 75, 0.35);
 
   --source:      #4A4946;
   --source-dim:  #18181A;
@@ -79,8 +85,9 @@
   --sun:         #F5B944;
   --sun-glow:    rgba(245, 185, 68, 0.12);
 
-  --font-mono: 'Geist', -apple-system, sans-serif;
-  --font-sans: 'Geist', -apple-system, sans-serif;
+  --font-mono: 'Rubik', -apple-system, sans-serif;
+  --font-sans: 'Rubik', -apple-system, sans-serif;
+  --font-display: 'Libre Baskerville', Georgia, serif;
 
   --text-10: 10px;
   --text-11: 11px;
@@ -99,15 +106,15 @@
   --sp-8:  32px;
   --sp-10: 40px;
 
-  --topbar-height:     40px;
+  --topbar-height:     52px;
   --greeting-height:   52px;
   --outline-row-min:   64px;
   --session-divider-h: 32px;
   --accent-bar-width:  2px;
 
-  --radius-sm:   3px;
-  --radius-md:   5px;
-  --radius-lg:   8px;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
   --radius-none: 0px;
 
   --transition-fast: 120ms ease;
@@ -153,8 +160,8 @@ html, body, #root {
   inset: -8px -20px;
   background: radial-gradient(
     ellipse at center,
-    rgba(76, 201, 160, 0.07) 0%,
-    rgba(76, 201, 160, 0.02) 60%,
+    rgba(135, 154, 120, 0.07) 0%,
+    rgba(135, 154, 120, 0.02) 60%,
     transparent 100%
   );
   pointer-events: none;
@@ -171,8 +178,8 @@ html, body, #root {
   height: 100px;
   background: radial-gradient(
     ellipse at center bottom,
-    rgba(76, 201, 160, 0.06) 0%,
-    rgba(76, 201, 160, 0.02) 50%,
+    rgba(135, 154, 120, 0.06) 0%,
+    rgba(135, 154, 120, 0.02) 50%,
     transparent 100%
   );
   pointer-events: none;

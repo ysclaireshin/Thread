@@ -1,15 +1,21 @@
 import { useState } from 'react'
 import { useStore } from '../store'
-import { organizerLabel } from '../types'
+import { greetingFromFocus, organizerLabel } from '../types'
 import { TextShimmerWave } from './core/text-shimmer-wave'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
 import { aiFetch } from '../lib/aiFetch'
 
 // ─── Flow · Part 3/4 - the re-entry card ──────────────────────────────────────
 // Sits at the top of the outline panel, above the "// current session" divider.
-// Shows the user's own commitment sentence verbatim (no AI), and - only on an
-// explicit ▶ Replay click - a single plain-language AI summary of the last
-// session. Nothing here calls the AI automatically.
+// Step 5 (visual redesign): this is now the SINGLE consolidated re-entry
+// surface - it absorbs what used to be a separate "// where you left off"
+// line + Q/A toggle + session counter in Topbar's old greeting band. The
+// headline reuses greetingFromFocus (same function, same Q/A framing that
+// band used) so that toggle's behavior isn't lost, just relocated here
+// alongside the rest of the re-entry UI instead of living on its own row.
+// Shows the user's own commitment sentence verbatim (no AI) as the card body,
+// and - only on an explicit ▶ Replay click - a single plain-language AI
+// summary of the last session. Nothing here calls the AI automatically.
 
 type CardMode = 'commitment' | 'loading' | 'ai'
 
@@ -26,28 +32,35 @@ Rules:
 - If you cannot determine what they were stuck on from the context, say so plainly rather than inventing something.`
 
 export function ReentryCard() {
-  const { focusCommitment, focusCommitmentSession, focusDraftSnapshot, currentSession, nodes, organizerLabels } = useStore()
+  const { focusCommitment, focusCommitmentSession, focusDraftSnapshot, currentSession, nodes, organizerLabels, greetingStyle, setGreetingStyle } = useStore()
   const [mode, setMode] = useState<CardMode>('commitment')
   const [aiSummary, setAiSummary] = useState<string>('')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  const focusNode = nodes.find(n => n.current_focus)
 
   const card: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--surface-1)',
     border: '1px solid var(--border)',
-    borderLeft: '3px solid var(--open)',
-    borderRadius: 'var(--radius-md)',
-    padding: '10px 12px',
-    margin: '8px 8px 12px 8px',
+    borderRadius: 'var(--radius-lg)',
+    padding: 'var(--sp-3) var(--sp-4)',
+    margin: 'var(--sp-2) var(--sp-2) var(--sp-3) var(--sp-2)',
   }
 
   // ── Empty state: nothing saved from last time ────────────────────────────
   if (!focusCommitment) {
     return (
       <div style={card}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-disabled)', lineHeight: 1.5 }}>
-          Nothing saved from last time - use Save My Place at the end of this session.
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: 'var(--text-primary)', fontSize: '12px', lineHeight: 1 }}>▶</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)', fontWeight: 500, color: 'var(--text-primary)' }}>
+            where you left off
+          </span>
+        </div>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-disabled)', lineHeight: 1.5, marginTop: '6px' }}>
+          Nothing saved from last time - use Save my place at the end of this session.
         </span>
       </div>
     )
@@ -113,24 +126,59 @@ export function ReentryCard() {
     setMode('commitment')
   }
 
+  // Headline reuses the same greetingFromFocus framing the old topbar band
+  // used - the Q/A toggle below still switches between its two phrasings.
+  const headline = focusNode ? greetingFromFocus(focusNode, greetingStyle) : 'where you left off'
+
   return (
     <div style={card}>
-      {/* Row 1 - ▶ Last session */}
+      {/* Row 1 - ▶ where you left off: <headline> */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ color: 'var(--open)', fontSize: '12px', lineHeight: 1 }}>▶</span>
+        <span style={{ color: 'var(--text-primary)', fontSize: '12px', lineHeight: 1, flexShrink: 0 }}>▶</span>
         <span style={{
-          fontFamily: 'var(--font-mono)', fontSize: '10px',
-          color: 'var(--text-tertiary)', letterSpacing: '0.04em',
+          fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)', fontWeight: 500,
+          color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          Last session
+          <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>where you left off: </span>
+          {headline}
         </span>
+
+        {/* Q / A toggle - relocated from the old topbar greeting band, now
+            living alongside the one card that uses its output. */}
+        {focusNode && (
+          <div style={{
+            display: 'flex', alignItems: 'center', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', overflow: 'hidden', flexShrink: 0, marginLeft: 'auto',
+          }}>
+            <button
+              onClick={() => setGreetingStyle('question')}
+              title="Phrase as a question"
+              style={{
+                padding: '1px 6px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)',
+                background: greetingStyle === 'question' ? 'var(--open-dim)' : 'transparent',
+                color: greetingStyle === 'question' ? 'var(--open)' : 'var(--text-secondary)',
+                border: 'none', cursor: 'pointer', transition: 'all var(--transition-fast)',
+              }}
+            >Q</button>
+            <button
+              onClick={() => setGreetingStyle('action')}
+              title="Phrase as an action"
+              style={{
+                padding: '1px 6px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)',
+                background: greetingStyle === 'action' ? 'var(--core-dim)' : 'transparent',
+                color: greetingStyle === 'action' ? 'var(--core)' : 'var(--text-secondary)',
+                border: 'none', cursor: 'pointer', transition: 'all var(--transition-fast)',
+              }}
+            >A</button>
+          </div>
+        )}
       </div>
 
       {mode === 'loading' ? (
-        <div style={{ marginTop: '6px' }}>
+        <div style={{ marginTop: '8px' }}>
           <TextShimmerWave
             duration={1.2}
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-tertiary)' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-secondary)' }}
           >
             Reading your session...
           </TextShimmerWave>
@@ -140,14 +188,14 @@ export function ReentryCard() {
           {/* AI summary - clearly labelled so it is never mistaken for the
               user's own words, and styled distinctly (not italic). */}
           <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: '10px',
-            color: 'var(--text-tertiary)', letterSpacing: '0.04em',
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)',
+            color: 'var(--text-secondary)', letterSpacing: '0.04em',
             marginTop: '8px',
           }}>
             AI summary
           </span>
           <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: '13px',
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)',
             color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: '4px',
           }}>
             {aiSummary}
@@ -157,11 +205,11 @@ export function ReentryCard() {
             style={{
               alignSelf: 'flex-start', marginTop: '8px',
               background: 'transparent', border: 'none', cursor: 'pointer',
-              fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-tertiary)',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-secondary)',
               padding: 0,
             }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
           >
             ✕ dismiss
           </button>
@@ -170,16 +218,15 @@ export function ReentryCard() {
         <>
           {/* Row 2 - the user's exact sentence, verbatim */}
           <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: '13px',
-            color: 'var(--text-primary)', lineHeight: 1.5,
-            fontStyle: 'italic', marginTop: '6px',
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)',
+            color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: '6px',
           }}>
             {focusCommitment}
           </p>
 
           {errorMsg && (
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)',
               color: 'var(--tension)', marginTop: '6px',
             }}>
               {errorMsg}
@@ -196,12 +243,12 @@ export function ReentryCard() {
               borderRadius: 'var(--radius-sm)',
               padding: '3px 8px',
               cursor: 'pointer',
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--text-tertiary)',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)',
+              color: 'var(--text-secondary)',
               transition: 'color var(--transition-fast), border-color var(--transition-fast)',
             }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--open)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >
             ▶ Replay
           </button>

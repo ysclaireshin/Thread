@@ -137,17 +137,17 @@ export const ORGANIZER_META: Record<Organizer, {
   // projects keep working. User-facing names: Idea / Problem / Question.
   core_idea: {
     label: 'Idea', short: 'Idea',
-    color: '#4CC9A0', colorDim: '#0D2B22', colorMid: '#1A4A3A',
+    color: '#879A78', colorDim: 'rgba(135, 154, 120, 0.14)', colorMid: 'rgba(135, 154, 120, 0.35)',
     cssVar: 'var(--core)', cssDim: 'var(--core-dim)', cssMid: 'var(--core-mid)',
   },
   point_of_tension: {
     label: 'Problem', short: 'Problem',
-    color: '#E06B5A', colorDim: '#2A100D', colorMid: '#4A1F1A',
+    color: '#A96F7C', colorDim: 'rgba(169, 111, 124, 0.14)', colorMid: 'rgba(169, 111, 124, 0.35)',
     cssVar: 'var(--tension)', cssDim: 'var(--tension-dim)', cssMid: 'var(--tension-mid)',
   },
   open_thought: {
     label: 'Question', short: 'Question',
-    color: '#E8A84A', colorDim: '#2A1D08', colorMid: '#4A3010',
+    color: '#DEA64B', colorDim: 'rgba(222, 166, 75, 0.14)', colorMid: 'rgba(222, 166, 75, 0.35)',
     cssVar: 'var(--open)', cssDim: 'var(--open-dim)', cssMid: 'var(--open-mid)',
   },
 }

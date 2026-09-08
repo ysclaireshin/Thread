@@ -2,16 +2,13 @@ import { useRef, useState, useEffect } from 'react'
 import { Plus, Download, Upload, Pencil, ArrowLeft, ArrowLeftRight, ChevronDown, X } from 'lucide-react'
 import { useStore, type ViewKind } from '../store'
 import { computeRenderStates } from '../canvas/renderState'
-import { greetingFromFocus } from '../types'
 import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
 import { OrganizerIcon } from './organizerIcon'
 import { CustomizeCategoriesModal } from './CustomizeCategoriesModal'
 import { extractText, ImportError, IMPORT_ACCEPT } from '../lib/importFile'
 import { motion, AnimatePresence } from 'motion/react'
 import { AnimatedNumber } from './core/animated-number'
-import { TextShimmerWave } from './core/text-shimmer-wave'
 
-interface Props { onAddNode: () => void; reentryLoading?: boolean }
 
 // ─── Thread logo - design E: liquid hue wave ─────────────────────────────────
 
@@ -47,11 +44,11 @@ function ThreadLogo() {
         <ellipse cx="8.5" cy="8" rx="3.5" ry="2.2" fill="url(#ts-logo-spec)" />
       </svg>
       <span style={{
-        fontFamily: "'Geist', sans-serif",
-        fontSize: '13px',
-        fontWeight: 600,
-        color: '#ffffff',
-        letterSpacing: '-0.02em',
+        fontFamily: 'var(--font-display)',
+        fontSize: '16px',
+        fontWeight: 400,
+        color: 'var(--text-primary)',
+        letterSpacing: '-0.01em',
       }}>thread</span>
     </div>
   )
@@ -133,18 +130,17 @@ function ProjectSwitcher() {
             background: 'none',
             border: 'none',
             padding: '2px 4px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 'var(--text-12)',
+            fontFamily: 'var(--font-display)',
+            fontSize: 'var(--text-14)',
             color: 'var(--text-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
-            letterSpacing: '0.03em',
           }}
         >
           {projectName}
-          <span style={{ color: 'var(--text-tertiary)', fontSize: '9px' }}>▾</span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>▾</span>
         </button>
       )}
 
@@ -333,7 +329,7 @@ function AddPopover() {
                       display: 'flex', alignItems: 'center', gap: '8px',
                     }}
                   >
-                    <OrganizerIcon organizer={o} size={14} color={organizer === o ? meta.color : '#5C5B58'} />
+                    <OrganizerIcon organizer={o} size={14} color={organizer === o ? meta.color : 'var(--text-tertiary)'} />
                     {organizerLabel(o, { organizerLabels })}
                   </button>
                 )
@@ -499,13 +495,13 @@ function SlotPicker({ value, disabledKind, onSelect }: {
         title="Choose which view this pane shows"
         style={{
           display: 'flex', alignItems: 'center', gap: '4px',
-          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '6px',
-          padding: '4px 8px', fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-primary)',
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+          padding: '5px 10px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-primary)',
           cursor: 'pointer', whiteSpace: 'nowrap',
         }}
       >
         {VIEW_LABELS[value]}
-        <ChevronDown size={11} style={{ color: 'var(--text-tertiary)' }} />
+        <ChevronDown size={11} style={{ color: 'var(--text-secondary)' }} />
       </button>
 
       {open && (
@@ -555,9 +551,9 @@ function WorkspacePicker() {
 
   const iconBtnStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '22px', height: '22px', flexShrink: 0,
-    background: 'none', border: '1px solid var(--border)', borderRadius: '6px',
-    color: 'var(--text-tertiary)', cursor: 'pointer',
+    width: '24px', height: '24px', flexShrink: 0,
+    background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+    color: 'var(--text-secondary)', cursor: 'pointer',
   }
 
   if (slots.length === 1) {
@@ -596,10 +592,10 @@ function WorkspacePicker() {
   )
 }
 
-export function Topbar({ reentryLoading = false }: Props) {
+export function Topbar() {
   const {
     nodes, edges, focusMode, setFocusMode, workspace, setWorkspaceSlots,
-    greetingStyle, setGreetingStyle, currentSession, exportJSON, importJSON,
+    exportJSON, importJSON,
     setDraftText, flowActive, flowIndicatorVisible,
   } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -613,8 +609,6 @@ export function Topbar({ reentryLoading = false }: Props) {
     tension: activeNodes.filter(n => n.organizer === 'point_of_tension' && renderStates[n.id] !== 'star').length,
     open:    activeNodes.filter(n => n.organizer === 'open_thought').length,
   }
-
-  const focusNode = nodes.find(n => n.current_focus)
 
   function appendToDraft(text: string) {
     const current = useStore.getState().draftText
@@ -648,12 +642,12 @@ export function Topbar({ reentryLoading = false }: Props) {
 
   const topbarStyle: React.CSSProperties = {
     height: 'var(--topbar-height)',
-    background: 'var(--canvas)',
+    background: 'var(--surface-1)',
     borderBottom: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
     gap: 'var(--sp-3)',
-    padding: '0 var(--sp-4)',
+    padding: '0 var(--sp-5)',
     flexShrink: 0,
     zIndex: 20,
   }
@@ -708,39 +702,36 @@ export function Topbar({ reentryLoading = false }: Props) {
           {counts.core > 0 && (
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
               <AnimatedNumber value={counts.core} style={{ color: 'var(--core)' }} />
-              <span style={{ color: 'var(--text-tertiary)' }}>core</span>
+              <span style={{ color: 'var(--text-secondary)' }}>core</span>
             </span>
           )}
           {counts.tension > 0 && (
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
               <AnimatedNumber value={counts.tension} style={{ color: 'var(--tension)' }} />
-              <span style={{ color: 'var(--text-tertiary)' }}>tension</span>
+              <span style={{ color: 'var(--text-secondary)' }}>tension</span>
             </span>
           )}
           {counts.open > 0 && (
             <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
               <AnimatedNumber value={counts.open} style={{ color: 'var(--open)' }} />
-              <span style={{ color: 'var(--text-tertiary)' }}>open</span>
+              <span style={{ color: 'var(--text-secondary)' }}>open</span>
             </span>
           )}
         </div>
-
-        {/* Workspace view-picker - replaces the old System/Linear/Map toggle */}
-        <WorkspacePicker />
 
         {/* Focus toggle - shown whenever System occupies either slot */}
         {workspace.slots.includes('system') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)', borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
             <button
               onClick={() => setFocusMode(true)}
-              style={{ ...viewToggleBtnBase, color: focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: focusMode ? 500 : 400 }}
+              style={{ ...viewToggleBtnBase, color: focusMode ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: focusMode ? 500 : 400 }}
             >
               Focus
             </button>
             <span style={{ color: 'var(--text-disabled)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)' }}>/</span>
             <button
               onClick={() => setFocusMode(false)}
-              style={{ ...viewToggleBtnBase, color: !focusMode ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: !focusMode ? 500 : 400 }}
+              style={{ ...viewToggleBtnBase, color: !focusMode ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: !focusMode ? 500 : 400 }}
             >
               Full
             </button>
@@ -750,18 +741,25 @@ export function Topbar({ reentryLoading = false }: Props) {
         {/* ADD button → MorphingPopover */}
         <AddPopover />
 
-        <button onClick={exportJSON} title="Export" style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}>
+        <button onClick={exportJSON} title="Export" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex' }}>
           <Download size={13} />
         </button>
         <button
           onClick={() => fileRef.current?.click()}
           disabled={importing}
           title="Import — Thread project (.json), PDF, Word (.docx), text, or code"
-          style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: importing ? 'default' : 'pointer', padding: '2px', opacity: importing ? 0.5 : 1 }}
+          style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: importing ? 'default' : 'pointer', padding: '2px', display: 'flex', opacity: importing ? 0.5 : 1 }}
         >
           <Upload size={13} />
         </button>
         <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} style={{ display: 'none' }} onChange={handleImport} />
+
+        {/* Workspace view-picker - replaces the old System/Linear/Map toggle.
+            Pinned at the trailing edge of the bar, matching the Penpot design's
+            picker placement. */}
+        <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
+          <WorkspacePicker />
+        </div>
       </div>
 
       {/* Import error pill — surfaces a user-safe reason when extraction fails */}
@@ -776,7 +774,7 @@ export function Topbar({ reentryLoading = false }: Props) {
             style={{
               position: 'absolute', top: 'calc(var(--topbar-height) + 6px)', right: 'var(--sp-4)',
               zIndex: 40, maxWidth: '340px', cursor: 'pointer',
-              background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: '8px',
+              background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
               padding: '8px 12px', fontFamily: 'var(--font-sans)', fontSize: '12px', lineHeight: 1.4,
               color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
             }}
@@ -785,109 +783,6 @@ export function Topbar({ reentryLoading = false }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ── Greeting band ───────────────────────────────────────── */}
-      <div style={{
-        height: 'var(--greeting-height)',
-        background: 'var(--surface-1)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 'var(--sp-4)',
-        padding: '0 var(--sp-4)',
-        flexShrink: 0,
-      }}>
-        <span style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-11)',
-          color: 'var(--text-tertiary)',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}>
-          // where you left off
-        </span>
-
-        {reentryLoading ? (
-          <TextShimmerWave
-            className='font-sans text-xs'
-            duration={1.2}
-            style={{ color: 'var(--text-tertiary)', flex: 1 }}
-          >
-            Reading your thinking...
-          </TextShimmerWave>
-        ) : focusNode ? (
-          <p style={{
-            flex: 1,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 'var(--text-14)',
-            fontWeight: 400,
-            color: 'var(--text-primary)',
-            lineHeight: 1.3,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            {greetingFromFocus(focusNode, greetingStyle)}
-          </p>
-        ) : (
-          <p style={{
-            flex: 1,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 'var(--text-13)',
-            color: 'var(--text-disabled)',
-            fontStyle: 'italic',
-          }}>
-            No focus set. Save your place to set a re-entry point.
-          </p>
-        )}
-
-        {/* Q / A toggle */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          overflow: 'hidden',
-          flexShrink: 0,
-        }}>
-          <button
-            onClick={() => setGreetingStyle('question')}
-            style={{
-              padding: '2px 8px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 'var(--text-12)',
-              background: greetingStyle === 'question' ? 'var(--open-dim)' : 'transparent',
-              color: greetingStyle === 'question' ? 'var(--open)' : 'var(--text-tertiary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
-            }}
-          >Q</button>
-          <button
-            onClick={() => setGreetingStyle('action')}
-            style={{
-              padding: '2px 8px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 'var(--text-12)',
-              background: greetingStyle === 'action' ? 'var(--core-dim)' : 'transparent',
-              color: greetingStyle === 'action' ? 'var(--core)' : 'var(--text-tertiary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
-            }}
-          >A</button>
-        </div>
-
-        {/* Session counter */}
-        <span style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-12)',
-          color: 'var(--text-tertiary)',
-          flexShrink: 0,
-        }}>
-          Session {currentSession}
-        </span>
-      </div>
     </div>
   )
 }

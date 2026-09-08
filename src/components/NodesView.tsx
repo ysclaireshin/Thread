@@ -233,9 +233,9 @@ interface NodeRowProps {
 // opacity-with-age effect), radiating from the row's left edge in the node's
 // organizer color at 8% opacity.
 const FLOW_GLOW_GRADIENT: Record<ThreadNode['organizer'], string> = {
-  core_idea: 'radial-gradient(ellipse at left, rgba(76, 201, 160, 0.08) 0%, transparent 70%)',
-  point_of_tension: 'radial-gradient(ellipse at left, rgba(224, 107, 90, 0.08) 0%, transparent 70%)',
-  open_thought: 'radial-gradient(ellipse at left, rgba(232, 168, 74, 0.08) 0%, transparent 70%)',
+  core_idea: 'radial-gradient(ellipse at left, rgba(135, 154, 120, 0.1) 0%, transparent 70%)',
+  point_of_tension: 'radial-gradient(ellipse at left, rgba(169, 111, 124, 0.1) 0%, transparent 70%)',
+  open_thought: 'radial-gradient(ellipse at left, rgba(222, 166, 75, 0.1) 0%, transparent 70%)',
 }
 
 function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: NodeRowProps) {
@@ -268,19 +268,22 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
     <div
       ref={rowRef}
       onClick={() => { setSelected(id); onHighlight(id) }}
-      style={{ paddingLeft: indent ? '24px' : '0', cursor: 'pointer' }}
+      style={{ padding: indent ? '0 var(--sp-3) var(--sp-2) 24px' : '0 var(--sp-3) var(--sp-2)', cursor: 'pointer' }}
     >
       <div style={{
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         minHeight: 'var(--outline-row-min)',
-        padding: 'var(--sp-3) var(--sp-4) var(--sp-3) 20px',
-        background: isHighlighted ? 'var(--surface-2)' : 'transparent',
+        padding: 'var(--sp-3) var(--sp-4) var(--sp-3) 22px',
+        background: isHighlighted ? 'var(--surface-3)' : 'var(--surface-1)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
         transition: 'background var(--transition-fast)',
       }}
-        onMouseEnter={e => { setHovered(true); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
-        onMouseLeave={e => { setHovered(false); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+        onMouseEnter={e => { setHovered(true); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-2)' }}
+        onMouseLeave={e => { setHovered(false); if (!isHighlighted) (e.currentTarget as HTMLDivElement).style.background = 'var(--surface-1)' }}
       >
         {/* Flow re-entry glow - one-time fade (not a keyframe loop). Sits under
             the content; background goes transparent after the 8s window. */}
@@ -303,7 +306,7 @@ function NodeRow({ id, indent, highlightedNodeId, onHighlight, parentLabel }: No
 
         {/* Line 1: type icon · title · pin */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', marginBottom: 'var(--sp-1)' }}>
-          <OrganizerIcon organizer={node.organizer} size={14} color={meta.color} />
+          <OrganizerIcon organizer={node.organizer} size={14} color="var(--text-primary)" />
           <span style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 'var(--text-15)',
@@ -455,10 +458,6 @@ function OutlinePanel({ highlightedNodeId, onHighlight }: OutlinePanelProps) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', background: 'var(--canvas)' }}>
 
-      {/* Persistent color key - always at the very top so the category system is
-          graspable at a glance without having to remember what each color means. */}
-      <OrganizerLegend />
-
       {/* Flow re-entry card - above the node list and the session divider */}
       <ReentryCard />
 
@@ -548,14 +547,17 @@ export function NodesView() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Outline</span>
+      {/* Header: the persistent Idea/Problem/Question color key sits here,
+          front and center, matching the Penpot design - counts are still
+          shown (nothing is removed), just de-emphasized on the right. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <OrganizerLegend />
         <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
           {/* Passive, display-only count of unresolved tensions - never gates anything. */}
           {(() => {
             const openTensions = nodes.filter(n => n.organizer === 'point_of_tension' && !n.resolved && !n.superseded_by).length
             return (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-10)', color: openTensions > 0 ? 'var(--tension)' : 'var(--text-disabled)' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: openTensions > 0 ? 'var(--tension)' : 'var(--text-disabled)' }}>
                 Tensions · {openTensions} open
               </span>
             )

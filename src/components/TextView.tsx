@@ -247,8 +247,8 @@ function AnchorBadges({ onAnchorClick, activeNodeId }: { onAnchorClick: (id: str
   const { textAnchors, nodes } = useStore()
   if (textAnchors.length === 0) return null
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)', padding: 'var(--sp-1) var(--sp-4)', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)', alignSelf: 'center' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)', padding: 'var(--sp-1) var(--sp-4)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-secondary)', alignSelf: 'center' }}>
         Linked spans:
       </span>
       {textAnchors.map(anchor => {
@@ -266,7 +266,7 @@ function AnchorBadges({ onAnchorClick, activeNodeId }: { onAnchorClick: (id: str
               padding: '2px var(--sp-2)', borderRadius: 'var(--radius-sm)',
               border: `1px solid ${isActive ? meta.cssVar : 'var(--border)'}`,
               background: isActive ? meta.cssDim : 'transparent',
-              color: isActive ? meta.cssVar : 'var(--text-tertiary)',
+              color: isActive ? meta.cssVar : 'var(--text-secondary)',
               fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', cursor: 'pointer',
               transition: 'all var(--transition-fast)',
             }}
@@ -534,10 +534,10 @@ export function TextView() {
       })
 
       if (glassBtn.textElement) {
-        glassBtn.textElement.style.fontFamily = "'Geist', -apple-system, sans-serif"
+        glassBtn.textElement.style.fontFamily = "'Rubik', -apple-system, sans-serif"
         glassBtn.textElement.style.fontSize = '11px'
         glassBtn.textElement.style.letterSpacing = '0.03em'
-        glassBtn.textElement.style.color = '#E8E6DC'
+        glassBtn.textElement.style.color = '#F1EBED'
       }
 
       glassBtn.element.style.cursor = 'pointer'
@@ -561,14 +561,14 @@ export function TextView() {
       const btn = document.createElement('button')
       btn.textContent = '⊙ Save my place'
       btn.style.cssText = `
-        background: rgba(76, 201, 160, 0.08);
+        background: rgba(135, 154, 120, 0.1);
         backdrop-filter: blur(16px) saturate(1.6);
         -webkit-backdrop-filter: blur(16px) saturate(1.6);
-        border: 1px solid rgba(76, 201, 160, 0.15);
-        border-top: 1px solid rgba(76, 201, 160, 0.25);
+        border: 1px solid rgba(135, 154, 120, 0.2);
+        border-top: 1px solid rgba(135, 154, 120, 0.3);
         box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5);
-        color: #E8E6DC;
-        font-family: 'Geist', -apple-system, sans-serif;
+        color: #F1EBED;
+        font-family: 'Rubik', -apple-system, sans-serif;
         font-size: 11px;
         font-weight: 500;
         letter-spacing: 0.03em;
@@ -630,9 +630,8 @@ export function TextView() {
     <>
       <div className="draft-editor-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, position: 'relative' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-1) var(--sp-4)', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-tertiary)' }}>Draft</span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-secondary)' }}>
             {draftText.length > 0 ? `${draftText.split(/\s+/).filter(Boolean).length} words` : ''}
           </span>
         </div>
@@ -657,10 +656,10 @@ export function TextView() {
         {ambient && (
           <div style={{
             margin: 'var(--sp-2) var(--sp-4)', padding: 'var(--sp-2) var(--sp-3)',
-            border: '1px solid rgba(224, 107, 90, 0.4)', borderRadius: 'var(--radius-md)',
-            background: 'var(--surface-2)', flexShrink: 0,
+            border: '1px solid rgba(169, 111, 124, 0.4)', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-1)', flexShrink: 0,
           }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: 'var(--sp-1)' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: 'var(--text-secondary)', marginBottom: 'var(--sp-1)' }}>
               Thread noticed something
             </div>
             <ProbeCard
@@ -672,7 +671,7 @@ export function TextView() {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-2) var(--sp-4)', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>
             {textAnchors.length > 0 ? `${textAnchors.length} linked span${textAnchors.length !== 1 ? 's' : ''}` : ''}
           </span>

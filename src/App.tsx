@@ -30,7 +30,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--canvas)', color: 'var(--text-primary)', overflow: 'hidden' }}>
-      <Topbar onAddNode={() => {}} />
+      <Topbar />
       <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <Workspace />
       </div>
