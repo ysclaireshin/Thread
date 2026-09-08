@@ -1201,7 +1201,7 @@ function GraphCanvas({
         height: '100%',
         cursor: connectingFrom ? 'crosshair' : 'default',
         userSelect: 'none',
-        background: '#08090A',
+        background: 'var(--canvas)',
         backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
         backgroundSize: '28px 28px',
       }}
@@ -1946,7 +1946,7 @@ function ExpandedMap({
       style={{
         width: '100%',
         height: '100%',
-        background: '#08090A',
+        background: 'var(--canvas)',
         backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
         backgroundSize: '28px 28px',
         userSelect: 'none',
@@ -2271,7 +2271,7 @@ export function MapView() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#08090A',
+        background: 'var(--canvas)',
         gap: '8px',
       }}>
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-secondary)' }}>
@@ -2326,7 +2326,7 @@ export function MapView() {
     }
 
     return (
-      <div style={{ flex: 1, position: 'relative', minHeight: 0, background: '#08090A', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', minHeight: 0, background: 'var(--canvas)', overflow: 'hidden' }}>
         <ExpandedMap nodes={expandedNodes} edges={edges} currentSession={currentSession} />
 
         {/* Top-left - map title */}
@@ -2392,7 +2392,7 @@ export function MapView() {
   }
 
   return (
-    <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', background: '#08090A' }}>
+    <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', background: 'var(--canvas)' }}>
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {/* Expand toggle - swaps the dot graph for the labeled-card view */}
         <button

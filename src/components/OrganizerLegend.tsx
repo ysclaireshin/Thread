@@ -17,9 +17,10 @@ export function OrganizerLegend({ pill = false }: { pill?: boolean }) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 'var(--sp-3)',
+        gap: 'var(--sp-4)',
         fontFamily: 'var(--font-sans)',
-        fontSize: 'var(--text-12)',
+        fontSize: '10px',
+        lineHeight: 1.2,
         color: 'var(--text-secondary)',
         ...(pill
           ? { padding: 'var(--sp-2)', background: 'var(--surface-1)', borderRadius: 'var(--radius-md)' }

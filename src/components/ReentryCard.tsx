@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PlayCircle from '@untitled-ui/icons-react/build/esm/PlayCircle'
 import { useStore } from '../store'
 import { greetingFromFocus, organizerLabel } from '../types'
 import { TextShimmerWave } from './core/text-shimmer-wave'
@@ -42,9 +43,9 @@ export function ReentryCard() {
   const card: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
-    background: 'var(--surface-1)',
+    background: 'var(--surface-2)',
     border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-lg)',
+    borderRadius: '20px',
     padding: 'var(--sp-3) var(--sp-4)',
     margin: 'var(--sp-2) var(--sp-2) var(--sp-3) var(--sp-2)',
   }
@@ -54,8 +55,8 @@ export function ReentryCard() {
     return (
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: 'var(--text-primary)', fontSize: '12px', lineHeight: 1 }}>▶</span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)', fontWeight: 500, color: 'var(--text-primary)' }}>
+          <PlayCircle width={15} height={15} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 400, lineHeight: 1.2, color: 'var(--text-primary)' }}>
             where you left off
           </span>
         </div>
@@ -134,13 +135,13 @@ export function ReentryCard() {
     <div style={card}>
       {/* Row 1 - ▶ where you left off: <headline> */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ color: 'var(--text-primary)', fontSize: '12px', lineHeight: 1, flexShrink: 0 }}>▶</span>
+        <PlayCircle width={15} height={15} style={{ color: 'var(--text-primary)', flexShrink: 0 }} />
         <span style={{
-          fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)', fontWeight: 500,
-          color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 400, lineHeight: 1.2,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>where you left off: </span>
-          {headline}
+          <span style={{ color: 'var(--text-primary)' }}>where you left off: </span>
+          <span style={{ color: 'var(--text-secondary)' }}>{headline}</span>
         </span>
 
         {/* Q / A toggle - relocated from the old topbar greeting band, now
@@ -218,7 +219,7 @@ export function ReentryCard() {
         <>
           {/* Row 2 - the user's exact sentence, verbatim */}
           <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)',
+            fontFamily: 'var(--font-sans)', fontSize: '12px', fontWeight: 400,
             color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: '6px',
           }}>
             {focusCommitment}

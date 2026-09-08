@@ -36,7 +36,10 @@ function migrateEdge(e: any): ThreadEdge {
 function migrateProject(p: any): ThreadProject {
   return {
     id: (p.id as string) ?? crypto.randomUUID(),
-    name: (p.name as string) ?? 'My project',
+    // One-time migration: projects saved before Step 5's lowercase default
+    // carry the old literal "My project" - only that exact legacy default is
+    // rewritten, never a name the user actually chose/renamed to.
+    name: p.name === 'My project' ? 'my project' : ((p.name as string) ?? 'my project'),
     thesis: (p.thesis as string) ?? '',
     nodes: ((p.nodes ?? []) as unknown[]).map(n => migrateNode(n)),
     edges: ((p.edges ?? []) as unknown[]).map(e => migrateEdge(e)),
@@ -93,13 +96,13 @@ function loadAll(): { active: ThreadProject; all: ThreadProject[] } {
     const oldRaw = localStorage.getItem('thread_solar_v2')
     if (oldRaw) {
       const old = JSON.parse(oldRaw)
-      const migrated = migrateProject({ id: 'migrated-v2', name: 'My project', ...old })
+      const migrated = migrateProject({ id: 'migrated-v2', name: 'my project', ...old })
       return { active: migrated, all: [migrated] }
     }
   } catch {}
 
   // Brand new install: start with a blank project
-  const blank = blankProject('My project')
+  const blank = blankProject('my project')
   return { active: blank, all: [blank] }
 }
 

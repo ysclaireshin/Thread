@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { Link2, Crosshair } from 'lucide-react'
+import UploadCloud01 from '@untitled-ui/icons-react/build/esm/UploadCloud01'
 import { useStore } from '../store'
 import { ORGANIZER_META, type TextAnchor, type ThreadNode } from '../types'
 import { AddNodeModal } from './AddNodeModal'
@@ -9,6 +10,7 @@ import { runProbe, isNoneResponse } from '../lib/probe'
 import { runIntelligence } from '../lib/intelligence'
 import { explainAiError } from '../lib/aiError'
 import { tryConsumeAiCall, AI_LIMIT_MESSAGE } from '../lib/aiLimit'
+import { extractText, ImportError, IMPORT_ACCEPT } from '../lib/importFile'
 
 // ─── Text view ──────────────────────────────────────────────────────────────
 // An independently mountable workspace view (Step 3 of the workspace/
@@ -71,8 +73,8 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
 
   const sharedStyle: React.CSSProperties = {
     fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--text-14)',
-    lineHeight: '1.65',
+    fontSize: '12px',
+    lineHeight: '2',
     padding: 'var(--sp-5) var(--sp-6)',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
@@ -149,7 +151,7 @@ function EditorWithHighlights({ value, onChange, onSelectionCreate, onAnchorClic
           ...sharedStyle,
           position: 'absolute', inset: 0,
           background: 'transparent',
-          color: 'var(--text-primary)',
+          color: 'var(--text-secondary)',
           resize: 'none',
           border: 'none',
           outline: 'none',
@@ -241,47 +243,6 @@ function SelectionToolbar({ toolbarRef, x, y, onCreateNode, showProbe, onProbe }
   )
 }
 
-// ─── Anchor badges strip ──────────────────────────────────────────────────────
-
-function AnchorBadges({ onAnchorClick, activeNodeId }: { onAnchorClick: (id: string) => void; activeNodeId: string | null }) {
-  const { textAnchors, nodes } = useStore()
-  if (textAnchors.length === 0) return null
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-1)', padding: 'var(--sp-1) var(--sp-4)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-secondary)', alignSelf: 'center' }}>
-        Linked spans:
-      </span>
-      {textAnchors.map(anchor => {
-        const node = nodes.find(n => n.id === anchor.node_id)
-        if (!node) return null
-        const meta = ORGANIZER_META[node.organizer]
-        const isActive = activeNodeId === node.id
-        return (
-          <button
-            key={anchor.id}
-            onClick={() => onAnchorClick(node.id)}
-            title={`"${anchor.text}" → ${node.label}`}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
-              padding: '2px var(--sp-2)', borderRadius: 'var(--radius-sm)',
-              border: `1px solid ${isActive ? meta.cssVar : 'var(--border)'}`,
-              background: isActive ? meta.cssDim : 'transparent',
-              color: isActive ? meta.cssVar : 'var(--text-secondary)',
-              fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
-            }}
-          >
-            <Link2 size={10} />
-            <span style={{ maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {anchor.text}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 // ─── Main TextView ────────────────────────────────────────────────────────────
 
 interface AddNodePrefill {
@@ -316,17 +277,47 @@ const EDITOR_LINE_HEIGHT = 14 * 1.65
 
 export function TextView() {
   const {
-    draftText, setDraftText, addNode, addTextAnchor, textAnchors, nodes, setCursorPos, projectId,
-    highlightedNodeId, setHighlightedNodeId,
+    draftText, setDraftText, addNode, addTextAnchor, nodes, setCursorPos, projectId,
+    highlightedNodeId, setHighlightedNodeId, importJSON,
   } = useStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const saveButtonRef = useRef<HTMLDivElement>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
   const [toolbar, setToolbar] = useState<{ x: number; y: number; scrollTop: number } | null>(null)
   const [selection, setSelection] = useState<{ start: number; end: number; text: string } | null>(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addPrefill, setAddPrefill] = useState<AddNodePrefill | null>(null)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+
+  // ─── Import - moved here from the old topbar (Step 5 redesign): the Penpot
+  // design places the upload-cloud trigger in this pane's own header, so a
+  // Thread project (.json) restores the whole project; any other file has its
+  // text extracted and dropped straight into the draft, which is already
+  // visible since this control lives inside TextView itself.
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; e.target.value = ''
+    if (!f) return
+    setImportMsg(null)
+    setImporting(true)
+    try {
+      if (f.name.toLowerCase().endsWith('.json')) {
+        const raw = await f.text()
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && Array.isArray(parsed.nodes)) { importJSON(raw); return }
+        } catch { /* not a project — fall through to text import below */ }
+      }
+      const text = await extractText(f)
+      const current = useStore.getState().draftText
+      setDraftText(current.trim() ? `${current}\n\n${text}` : text)
+    } catch (err) {
+      setImportMsg(err instanceof ImportError ? err.message : 'Import failed — that file couldn’t be read.')
+    } finally {
+      setImporting(false)
+    }
+  }
   // Current textarea scrollTop, kept live so fixed-position overlays (toolbar,
   // Probe card) can be re-anchored as the editor scrolls under them - without
   // this they stay glued to the viewport coords captured at click time and
@@ -514,75 +505,6 @@ export function TextView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  useEffect(() => {
-    if (!saveButtonRef.current) return
-    const wrapper = saveButtonRef.current
-
-    const timer = setTimeout(() => {
-      const Button = (window as unknown as Record<string, unknown>).Button as (new (opts: Record<string, unknown>) => { element: HTMLElement; textElement: HTMLElement | null; canvas: HTMLCanvasElement | null }) | undefined
-      if (!Button) {
-        renderFallback(wrapper)
-        return
-      }
-
-      const glassBtn = new Button({
-        text: '⊙ Save my place',
-        fontSize: 13,
-        type: 'pill',
-        tintOpacity: 0.35,
-        warp: false,
-      })
-
-      if (glassBtn.textElement) {
-        glassBtn.textElement.style.fontFamily = "'Rubik', -apple-system, sans-serif"
-        glassBtn.textElement.style.fontSize = '11px'
-        glassBtn.textElement.style.letterSpacing = '0.03em'
-        glassBtn.textElement.style.color = '#F1EBED'
-      }
-
-      glassBtn.element.style.cursor = 'pointer'
-      glassBtn.element.addEventListener('click', handleSaveMyPlace)
-
-      wrapper.innerHTML = ''
-      wrapper.appendChild(glassBtn.element)
-
-      setTimeout(() => {
-        const canvas = glassBtn.canvas
-        if (!canvas) { renderFallback(wrapper); return }
-        const ctx = canvas.getContext('2d')
-        if (!ctx) { renderFallback(wrapper); return }
-        const imageData = ctx.getImageData(0, 0, 1, 1)
-        if (imageData.data[3] === 0) renderFallback(wrapper)
-      }, 800)
-    }, 300)
-
-    function renderFallback(wrapper: HTMLDivElement) {
-      wrapper.innerHTML = ''
-      const btn = document.createElement('button')
-      btn.textContent = '⊙ Save my place'
-      btn.style.cssText = `
-        background: rgba(135, 154, 120, 0.1);
-        backdrop-filter: blur(16px) saturate(1.6);
-        -webkit-backdrop-filter: blur(16px) saturate(1.6);
-        border: 1px solid rgba(135, 154, 120, 0.2);
-        border-top: 1px solid rgba(135, 154, 120, 0.3);
-        box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 8px 32px rgba(0,0,0,0.5);
-        color: #F1EBED;
-        font-family: 'Rubik', -apple-system, sans-serif;
-        font-size: 11px;
-        font-weight: 500;
-        letter-spacing: 0.03em;
-        padding: 8px 20px;
-        border-radius: 20px;
-        cursor: pointer;
-      `
-      btn.onclick = handleSaveMyPlace
-      wrapper.appendChild(btn)
-    }
-
-    return () => clearTimeout(timer)
-  }, [])
-
   const snapshotCountRef = useRef(nodes.length)
 
   // On modal close: if a new node appeared since snapshot, wire the anchor
@@ -630,11 +552,35 @@ export function TextView() {
     <>
       <div className="draft-editor-container" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, position: 'relative' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 'var(--subheader-height)', boxSizing: 'border-box', padding: '0 var(--sp-4)', background: 'var(--surface-1)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            title="Import — Thread project (.json), PDF, Word (.docx), text, or code"
+            style={{ display: 'flex', color: 'var(--text-primary)', background: 'none', border: 'none', cursor: importing ? 'default' : 'pointer', padding: 0, opacity: importing ? 0.5 : 1 }}
+          >
+            <UploadCloud01 width={20} height={20} />
+          </button>
+          <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} style={{ display: 'none' }} onChange={handleImport} />
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', lineHeight: 1.2, color: 'var(--text-secondary)' }}>
             {draftText.length > 0 ? `${draftText.split(/\s+/).filter(Boolean).length} words` : ''}
           </span>
         </div>
+
+        {/* Import error pill - surfaces a user-safe reason when extraction fails */}
+        {importMsg && (
+          <div
+            onClick={() => setImportMsg(null)}
+            title="Dismiss"
+            style={{
+              margin: 'var(--sp-2) var(--sp-4)', padding: '8px 12px', cursor: 'pointer', flexShrink: 0,
+              background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+              fontFamily: 'var(--font-sans)', fontSize: '12px', lineHeight: 1.4, color: 'var(--text-secondary)',
+            }}
+          >
+            {importMsg}
+          </div>
+        )}
 
         <EditorWithHighlights
           value={draftText}
@@ -646,8 +592,6 @@ export function TextView() {
           activeNodeId={highlightedNodeId}
           textareaRef={textareaRef}
         />
-
-        <AnchorBadges onAnchorClick={id => setHighlightedNodeId(id)} activeNodeId={highlightedNodeId} />
 
         {/* Ambient suggestion - Thread noticed something worth probing on its
             own, no click required. Sits in normal document flow (not floating
@@ -671,11 +615,23 @@ export function TextView() {
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-10)', color: 'var(--text-disabled)' }}>
-            {textAnchors.length > 0 ? `${textAnchors.length} linked span${textAnchors.length !== 1 ? 's' : ''}` : ''}
-          </span>
-          <div ref={saveButtonRef} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: 'var(--sp-2) var(--sp-4)', background: 'var(--surface-1)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <button
+            onClick={handleSaveMyPlace}
+            style={{
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border)',
+              borderRadius: '20px',
+              padding: '8px 16px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+            }}
+          >
+            Save my place
+          </button>
         </div>
       </div>
 

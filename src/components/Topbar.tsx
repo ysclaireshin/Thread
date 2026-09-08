@@ -1,54 +1,42 @@
 import { useRef, useState, useEffect } from 'react'
-import { Plus, Download, Upload, Pencil, ArrowLeft, ArrowLeftRight, ChevronDown, X } from 'lucide-react'
+import { Pencil, X, Plus } from 'lucide-react'
+import SwitchHorizontal01 from '@untitled-ui/icons-react/build/esm/SwitchHorizontal01'
 import { useStore, type ViewKind } from '../store'
-import { computeRenderStates } from '../canvas/renderState'
-import { ORGANIZER_META, organizerLabel, type Organizer } from '../types'
-import { OrganizerIcon } from './organizerIcon'
 import { CustomizeCategoriesModal } from './CustomizeCategoriesModal'
-import { extractText, ImportError, IMPORT_ACCEPT } from '../lib/importFile'
-import { motion, AnimatePresence } from 'motion/react'
-import { AnimatedNumber } from './core/animated-number'
 
-
-// ─── Thread logo - design E: liquid hue wave ─────────────────────────────────
+// ─── Thread logo ──────────────────────────────────────────────────────────────
+// Step 5 redesign: exact spec pulled from Penpot's inspector - two ellipses,
+// identical fill/border, layered so the back one (larger, blurred) reads as
+// a soft glow behind the front one (smaller, crisp edge):
+//   back:  13x13, left 11 top 10, #ffa000 fill, 1px #d48624 border, blur(3px)
+//   front: 11x11, left 12 top 11, #ffa000 fill, 1px #d48624 border
+// Both positioned within a 24x24 box to match those coordinates exactly.
 
 function ThreadLogo() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-      <svg className="logo-sun" width="18" height="18" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <radialGradient id="ts-logo-fill" cx="38%" cy="32%" r="68%">
-            <stop offset="0%" stopColor="#ffe070" />
-            <stop offset="50%" stopColor="#f08818" />
-            <stop offset="100%" stopColor="#7a3a00" />
-          </radialGradient>
-          <radialGradient id="ts-logo-spec" cx="35%" cy="30%" r="42%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.8)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </radialGradient>
-        </defs>
-        <path fill="url(#ts-logo-fill)">
-          <animate
-            attributeName="d"
-            dur="4s"
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"
-            values="M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z;
-                    M11,3.5 C15,2 19.5,7 18,12 C16.5,17 13,20 9,18.5 C5,17 2,13 3.5,9 C5,5 7,5 11,3.5 Z;
-                    M11,3 C16,3 19.5,7 19,12 C18.5,17 14,20 10,18.5 C6,17 2.5,14 3,9.5 C3.5,5 6,3 11,3 Z;
-                    M11,3.5 C15,2.5 19.5,7.5 18.5,12 C17.5,16.5 14,19.5 9.5,18.5 C5,17.5 2.5,13 3,9 C3.5,5 7,5 11,3.5 Z;
-                    M11,3 C15.5,3 19,6.5 19,11 C19,15.5 15.5,19 11,19 C6.5,19 3,15.5 3,11 C3,6.5 6.5,3 11,3 Z"
-          />
-        </path>
-        <ellipse cx="8.5" cy="8" rx="3.5" ry="2.2" fill="url(#ts-logo-spec)" />
-      </svg>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {/* Container tightly wraps the back (larger) circle's own bounds - not
+          an arbitrary box - so flexbox centers the visible glyph itself
+          against the "thread" text, not empty space around it. */}
+      <div style={{ position: 'relative', width: '13px', height: '13px', flexShrink: 0 }}>
+        <span style={{
+          position: 'absolute', inset: 0,
+          borderRadius: '50%', background: '#ffa000', border: '1px solid #d48624',
+          filter: 'blur(3px)',
+        }} />
+        <span style={{
+          position: 'absolute', left: '1px', top: '1px', width: '11px', height: '11px',
+          borderRadius: '50%', background: '#ffa000', border: '1px solid #d48624',
+        }} />
+      </div>
       <span style={{
         fontFamily: 'var(--font-display)',
-        fontSize: '16px',
+        fontSize: '14px',
         fontWeight: 400,
+        lineHeight: 1.2,
         color: 'var(--text-primary)',
-        letterSpacing: '-0.01em',
+        letterSpacing: 0,
+        WebkitTextStroke: '0.28px var(--text-primary)',
       }}>thread</span>
     </div>
   )
@@ -131,8 +119,10 @@ function ProjectSwitcher() {
             border: 'none',
             padding: '2px 4px',
             fontFamily: 'var(--font-display)',
-            fontSize: 'var(--text-14)',
+            fontSize: '14px',
+            lineHeight: 1.2,
             color: 'var(--text-secondary)',
+            WebkitTextStroke: '0.28px var(--text-secondary)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
@@ -140,7 +130,11 @@ function ProjectSwitcher() {
           }}
         >
           {projectName}
-          <span style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>▾</span>
+          <span style={{
+            display: 'inline-block', width: 0, height: 0,
+            borderLeft: '2px solid transparent', borderRight: '2px solid transparent',
+            borderTop: '2px solid var(--text-secondary)', flexShrink: 0,
+          }} />
         </button>
       )}
 
@@ -202,263 +196,12 @@ function ProjectSwitcher() {
   )
 }
 
-// ─── Add Node Popover ─────────────────────────────────────────────────────────
-
-function AddPopover() {
-  const { addNode, organizerLabels } = useStore()
-  const [organizer, setOrganizer] = useState<Organizer>('core_idea')
-  const [label, setLabel] = useState('')
-  const [notes, setNotes] = useState('')
-  const [notesOpen, setNotesOpen] = useState(false)
-  const [popoverOpen, setPopoverOpen] = useState(false)
-
-  function reset() {
-    setOrganizer('core_idea')
-    setLabel('')
-    setNotes('')
-    setNotesOpen(false)
-  }
-
-  function submit() {
-    if (!label.trim()) return
-    const meta = ORGANIZER_META[organizer]
-    addNode({
-      id: `n-${Date.now()}`,
-      label: label.trim(),
-      description: notes.trim(),
-      organizer,
-      centrality: 0.6,
-      confidence: 2,
-      parent_id: null,
-      current_focus: false,
-      last_reinforced_at: new Date().toISOString(),
-      provenance: 'human',
-      color: meta.color,
-    })
-    setPopoverOpen(false)
-    reset()
-  }
-
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!popoverOpen) return
-    function onMouseDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setPopoverOpen(false)
-        reset()
-      }
-    }
-    document.addEventListener('mousedown', onMouseDown)
-    return () => document.removeEventListener('mousedown', onMouseDown)
-  }, [popoverOpen])
-
-  useEffect(() => {
-    if (!popoverOpen) return
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { setPopoverOpen(false); reset() }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [popoverOpen])
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      {/* Trigger */}
-      <button
-        onClick={() => setPopoverOpen(v => !v)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--sp-1)',
-          background: 'var(--surface-2)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          padding: 'var(--sp-1) var(--sp-2)',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--text-13)',
-          fontWeight: 500,
-          color: 'var(--text-primary)',
-          cursor: 'pointer',
-        }}
-      >
-        <Plus size={11} />
-        Add
-      </button>
-
-      {/* Popover panel */}
-      <AnimatePresence>
-        {popoverOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -6 }}
-            transition={{ type: 'spring', bounce: 0.15, duration: 0.25 }}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              right: 0,
-              width: '320px',
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '12px',
-              zIndex: 50,
-              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-              transformOrigin: 'top right',
-            }}
-          >
-            {/* Organizer buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-              {(Object.keys(ORGANIZER_META) as Organizer[]).map((o) => {
-                const meta = ORGANIZER_META[o]
-                return (
-                  <button
-                    key={o}
-                    onClick={() => setOrganizer(o)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${organizer === o ? meta.color : 'var(--border)'}`,
-                      background: organizer === o ? meta.colorDim : 'var(--surface-2)',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: '12px',
-                      color: organizer === o ? meta.cssVar : 'var(--text-tertiary)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 150ms',
-                      display: 'flex', alignItems: 'center', gap: '8px',
-                    }}
-                  >
-                    <OrganizerIcon organizer={o} size={14} color={organizer === o ? meta.color : 'var(--text-tertiary)'} />
-                    {organizerLabel(o, { organizerLabels })}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Label input */}
-            <input
-              autoFocus
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder={`Name this ${organizerLabel(organizer, { organizerLabels }).toLowerCase()}...`}
-              style={{
-                width: '100%',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '1px solid var(--border)',
-                padding: '8px 0',
-                color: 'var(--text-primary)',
-                outline: 'none',
-                boxSizing: 'border-box',
-                marginBottom: '8px',
-              }}
-            />
-
-            {/* Notes toggle */}
-            {!notesOpen ? (
-              <button
-                onClick={() => setNotesOpen(true)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '11px',
-                  color: 'var(--text-tertiary)',
-                  cursor: 'pointer',
-                  padding: 0,
-                  marginBottom: '12px',
-                  display: 'block',
-                }}
-              >
-                Add notes +
-              </button>
-            ) : (
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notes..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '13px',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: '1px solid var(--border)',
-                  padding: '8px 0',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  resize: 'none',
-                  boxSizing: 'border-box',
-                  marginBottom: '12px',
-                }}
-              />
-            )}
-
-            {/* Bottom row */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <button
-                onClick={() => { setPopoverOpen(false); reset() }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-tertiary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                }}
-              >
-                <ArrowLeft size={14} />
-              </button>
-              <button
-                onClick={submit}
-                disabled={!label.trim()}
-                style={{
-                  background: label.trim() ? 'var(--core-mid)' : 'var(--surface-2)',
-                  border: `1px solid ${label.trim() ? 'var(--core)' : 'var(--border)'}`,
-                  color: label.trim() ? 'var(--core)' : 'var(--text-disabled)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '11px',
-                  padding: '4px 12px',
-                  cursor: label.trim() ? 'pointer' : 'default',
-                  transition: 'all 150ms',
-                }}
-              >
-                Add
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
 // ─── Main Topbar ──────────────────────────────────────────────────────────────
 
 // Fixed display order for every view-kind picker below.
 const VIEW_KIND_ORDER: ViewKind[] = ['text', 'nodes', 'map', 'system']
 const VIEW_LABELS: Record<ViewKind, string> = {
-  text: 'Text', nodes: 'Nodes', map: 'Map', system: 'System',
-}
-
-// Ensures `view` is one of the active slots, changing as little as possible:
-// leaves the workspace untouched if it's already visible; otherwise swaps it
-// into a single-slot workspace, or replaces the FIRST slot of a two-slot one
-// (keeping the second view and the split as they were). Used by file import
-// to guarantee the draft becomes visible regardless of what's currently on
-// screen - the workspace-level replacement for the old "always switch to
-// Linear" behavior.
-function ensureViewVisible(slots: ViewKind[], view: ViewKind): ViewKind[] {
-  if (slots.includes(view)) return slots
-  if (slots.length < 2) return [view]
-  return [view, slots[1]]
+  text: 'Text', nodes: 'Outline', map: 'Map', system: 'System',
 }
 
 // ─── Slot picker ──────────────────────────────────────────────────────────────
@@ -494,14 +237,19 @@ function SlotPicker({ value, disabledKind, onSelect }: {
         onClick={() => setOpen(v => !v)}
         title="Choose which view this pane shows"
         style={{
-          display: 'flex', alignItems: 'center', gap: '4px',
-          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-          padding: '5px 10px', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)', color: 'var(--text-primary)',
-          cursor: 'pointer', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+          height: '18px', boxSizing: 'border-box',
+          background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '20px',
+          padding: '0 10px', fontFamily: 'var(--font-sans)', fontSize: '10px', fontWeight: 400, lineHeight: 1.2,
+          color: 'var(--text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap',
         }}
       >
         {VIEW_LABELS[value]}
-        <ChevronDown size={11} style={{ color: 'var(--text-secondary)' }} />
+        <span style={{
+          display: 'inline-block', width: 0, height: 0,
+          borderLeft: '2px solid transparent', borderRight: '2px solid transparent',
+          borderTop: '2px solid var(--text-secondary)', flexShrink: 0,
+        }} />
       </button>
 
       {open && (
@@ -582,7 +330,7 @@ function WorkspacePicker() {
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <SlotPicker value={first} disabledKind={second} onSelect={kind => setWorkspaceSlots([kind, second])} />
       <button onClick={() => setWorkspaceSlots([second, first])} title="Swap the two views" style={iconBtnStyle}>
-        <ArrowLeftRight size={12} />
+        <SwitchHorizontal01 width={11} height={11} />
       </button>
       <SlotPicker value={second} disabledKind={first} onSelect={kind => setWorkspaceSlots([first, kind])} />
       <button onClick={() => setWorkspaceSlots([first])} title="Remove second view" style={iconBtnStyle}>
@@ -592,54 +340,16 @@ function WorkspacePicker() {
   )
 }
 
+// Step 5 visual redesign: the topbar is trimmed to exactly what the Penpot
+// design shows - logo/thread, project switcher, and the workspace picker.
+// Counts, the manual Add-node popover, Export, and Import were dropped from
+// this bar per direct design feedback (Import already has a Penpot-side
+// replacement elsewhere; Export wasn't wanted). Their store actions
+// (exportJSON, importJSON, addNode) are untouched - only this bar's UI
+// entry points to them are gone. Focus/Full (System-only) is intentionally
+// left out too - System hasn't been redesigned yet, so it isn't part of
+// this pass; it comes back when System's own design arrives.
 export function Topbar() {
-  const {
-    nodes, edges, focusMode, setFocusMode, workspace, setWorkspaceSlots,
-    exportJSON, importJSON,
-    setDraftText, flowActive, flowIndicatorVisible,
-  } = useStore()
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [importing, setImporting] = useState(false)
-  const [importMsg, setImportMsg] = useState<string | null>(null)
-
-  const renderStates = computeRenderStates(nodes, edges)
-  const activeNodes = nodes.filter(n => !n.resolved && !n.superseded_by)
-  const counts = {
-    core:    activeNodes.filter(n => n.organizer === 'core_idea' && renderStates[n.id] !== 'star').length,
-    tension: activeNodes.filter(n => n.organizer === 'point_of_tension' && renderStates[n.id] !== 'star').length,
-    open:    activeNodes.filter(n => n.organizer === 'open_thought').length,
-  }
-
-  function appendToDraft(text: string) {
-    const current = useStore.getState().draftText
-    setDraftText(current.trim() ? `${current}\n\n${text}` : text)
-    setWorkspaceSlots(ensureViewVisible(workspace.slots, 'text')) // make sure the draft is visible
-  }
-
-  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]; e.target.value = ''
-    if (!f) return
-    setImportMsg(null)
-    setImporting(true)
-    try {
-      // A Thread project export (.json) restores the whole project. Any other
-      // file — a PDF, Word doc, markdown, or code/data file — has its text
-      // extracted and dropped into the draft so it actually shows up.
-      if (f.name.toLowerCase().endsWith('.json')) {
-        const raw = await f.text()
-        try {
-          const parsed = JSON.parse(raw)
-          if (parsed && Array.isArray(parsed.nodes)) { importJSON(raw); return }
-        } catch { /* not a project — fall through to text import below */ }
-      }
-      appendToDraft(await extractText(f))
-    } catch (err) {
-      setImportMsg(err instanceof ImportError ? err.message : 'Import failed — that file couldn’t be read.')
-    } finally {
-      setImporting(false)
-    }
-  }
-
   const topbarStyle: React.CSSProperties = {
     height: 'var(--topbar-height)',
     background: 'var(--surface-1)',
@@ -647,142 +357,28 @@ export function Topbar() {
     display: 'flex',
     alignItems: 'center',
     gap: 'var(--sp-3)',
-    padding: '0 var(--sp-5)',
+    padding: '0 var(--sp-4)',
     flexShrink: 0,
     zIndex: 20,
   }
 
-  // color/fontWeight are always overridden at the call sites below (each
-  // passes its own focusMode-driven values right after spreading this in) -
-  // this just supplies the shared base look.
-  const viewToggleBtnBase: React.CSSProperties = {
-    background: 'none',
-    border: 'none',
-    fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--text-13)',
-    letterSpacing: '0.03em',
-    cursor: 'pointer',
-    padding: '2px 4px',
-  }
-
   return (
     <div style={{ flexShrink: 0, zIndex: 20 }}>
-      {/* ── Main bar ─────────────────────────────────────────────── */}
       <div style={topbarStyle}>
         {/* Brand */}
         <div className="topbar-brand-glow" style={{ flexShrink: 0, position: 'relative' }}>
           <ThreadLogo />
         </div>
 
-        <span style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-12)' }}>·</span>
+        <span style={{ display: 'inline-block', width: '1px', height: '17px', background: 'var(--border)', flexShrink: 0 }} />
 
         <ProjectSwitcher />
 
-        {/* Flow status indicator - confirms Flow activated on this load, then
-            fades. Not a button; purely a signal that the tool did something. */}
-        {flowActive && (
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
-            color: 'var(--open)',
-            opacity: flowIndicatorVisible ? 0.6 : 0,
-            transition: 'opacity 2s ease-out',
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-            flexShrink: 0,
-          }}>
-            ▶ Flow
-          </span>
-        )}
-
         <div style={{ flex: 1 }} />
 
-        {/* Counts */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-          {counts.core > 0 && (
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
-              <AnimatedNumber value={counts.core} style={{ color: 'var(--core)' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>core</span>
-            </span>
-          )}
-          {counts.tension > 0 && (
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
-              <AnimatedNumber value={counts.tension} style={{ color: 'var(--tension)' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>tension</span>
-            </span>
-          )}
-          {counts.open > 0 && (
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--text-11)', display: 'flex', gap: '4px' }}>
-              <AnimatedNumber value={counts.open} style={{ color: 'var(--open)' }} />
-              <span style={{ color: 'var(--text-secondary)' }}>open</span>
-            </span>
-          )}
-        </div>
-
-        {/* Focus toggle - shown whenever System occupies either slot */}
-        {workspace.slots.includes('system') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-1)', borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
-            <button
-              onClick={() => setFocusMode(true)}
-              style={{ ...viewToggleBtnBase, color: focusMode ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: focusMode ? 500 : 400 }}
-            >
-              Focus
-            </button>
-            <span style={{ color: 'var(--text-disabled)', fontFamily: 'var(--font-sans)', fontSize: 'var(--text-13)' }}>/</span>
-            <button
-              onClick={() => setFocusMode(false)}
-              style={{ ...viewToggleBtnBase, color: !focusMode ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: !focusMode ? 500 : 400 }}
-            >
-              Full
-            </button>
-          </div>
-        )}
-
-        {/* ADD button → MorphingPopover */}
-        <AddPopover />
-
-        <button onClick={exportJSON} title="Export" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex' }}>
-          <Download size={13} />
-        </button>
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={importing}
-          title="Import — Thread project (.json), PDF, Word (.docx), text, or code"
-          style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: importing ? 'default' : 'pointer', padding: '2px', display: 'flex', opacity: importing ? 0.5 : 1 }}
-        >
-          <Upload size={13} />
-        </button>
-        <input ref={fileRef} type="file" accept={IMPORT_ACCEPT} style={{ display: 'none' }} onChange={handleImport} />
-
-        {/* Workspace view-picker - replaces the old System/Linear/Map toggle.
-            Pinned at the trailing edge of the bar, matching the Penpot design's
-            picker placement. */}
-        <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 'var(--sp-3)', marginLeft: 'var(--sp-1)' }}>
-          <WorkspacePicker />
-        </div>
+        {/* Workspace view-picker - replaces the old System/Linear/Map toggle. */}
+        <WorkspacePicker />
       </div>
-
-      {/* Import error pill — surfaces a user-safe reason when extraction fails */}
-      <AnimatePresence>
-        {importMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            onClick={() => setImportMsg(null)}
-            title="Dismiss"
-            style={{
-              position: 'absolute', top: 'calc(var(--topbar-height) + 6px)', right: 'var(--sp-4)',
-              zIndex: 40, maxWidth: '340px', cursor: 'pointer',
-              background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
-              padding: '8px 12px', fontFamily: 'var(--font-sans)', fontSize: '12px', lineHeight: 1.4,
-              color: 'var(--text-secondary)', boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-            }}
-          >
-            {importMsg}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
