@@ -1,14 +1,10 @@
 import { useEffect } from 'react'
 import { Topbar } from './components/Topbar'
-import { SolarSystem } from './components/SolarSystem'
-import { SidePanel } from './components/SidePanel'
-import { LinearView } from './components/LinearView'
-import { MapView } from './components/MapView'
+import { Workspace } from './components/Workspace'
 import { FeedbackWidget } from './components/FeedbackWidget'
 import { useStore, hydrateFromCloud } from './store'
 
 export default function App() {
-  const viewMode = useStore(s => s.viewMode)
   const projectId = useStore(s => s.projectId)
   const activateFlow = useStore(s => s.activateFlow)
   const fadeFlowGlow = useStore(s => s.fadeFlowGlow)
@@ -34,23 +30,9 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--canvas)', color: 'var(--text-primary)', overflow: 'hidden' }}>
-      <Topbar onAddNode={() => {}} />
+      <Topbar />
       <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {viewMode === 'system' ? (
-          <>
-            <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-              <SolarSystem />
-              <SidePanel />
-            </div>
-            <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-10)', color: 'var(--text-tertiary)', pointerEvents: 'none', fontFamily: 'var(--font-mono)', letterSpacing: '0.03em' }}>
-              scroll to zoom · click object to inspect · click planet to focus
-            </div>
-          </>
-        ) : viewMode === 'linear' ? (
-          <LinearView />
-        ) : (
-          <MapView />
-        )}
+        <Workspace />
       </div>
       <FeedbackWidget />
     </div>

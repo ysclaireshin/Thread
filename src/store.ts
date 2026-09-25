@@ -36,7 +36,10 @@ function migrateEdge(e: any): ThreadEdge {
 function migrateProject(p: any): ThreadProject {
   return {
     id: (p.id as string) ?? crypto.randomUUID(),
-    name: (p.name as string) ?? 'My project',
+    // One-time migration: projects saved before Step 5's lowercase default
+    // carry the old literal "My project" - only that exact legacy default is
+    // rewritten, never a name the user actually chose/renamed to.
+    name: p.name === 'My project' ? 'my project' : ((p.name as string) ?? 'my project'),
     thesis: (p.thesis as string) ?? '',
     nodes: ((p.nodes ?? []) as unknown[]).map(n => migrateNode(n)),
     edges: ((p.edges ?? []) as unknown[]).map(e => migrateEdge(e)),
@@ -93,13 +96,13 @@ function loadAll(): { active: ThreadProject; all: ThreadProject[] } {
     const oldRaw = localStorage.getItem('thread_solar_v2')
     if (oldRaw) {
       const old = JSON.parse(oldRaw)
-      const migrated = migrateProject({ id: 'migrated-v2', name: 'My project', ...old })
+      const migrated = migrateProject({ id: 'migrated-v2', name: 'my project', ...old })
       return { active: migrated, all: [migrated] }
     }
   } catch {}
 
   // Brand new install: start with a blank project
-  const blank = blankProject('My project')
+  const blank = blankProject('my project')
   return { active: blank, all: [blank] }
 }
 
@@ -135,7 +138,43 @@ function saveAll(state: Store) {
 
 // ─── Store interface ──────────────────────────────────────────────────────────
 
-type ViewMode = 'system' | 'linear' | 'map'
+// The four atomic views the workspace can compose (workspace/view-slot
+// redesign). 'text' and 'nodes' are the split halves of the former single
+// Linear view - Step 3 makes them genuinely independent slots, not a
+// hardcoded pairing (see Workspace.tsx).
+export type ViewKind = 'text' | 'nodes' | 'map' | 'system'
+
+export interface WorkspaceState {
+  slots: ViewKind[]    // always length 1 or 2, never empty, never duplicated - see normalizeSlots
+  splitRatio: number   // first slot's share of width when slots.length === 2; clamped in (0.1, 0.9)
+}
+
+// The one chokepoint every caller (today's Topbar toggle, a future view
+// picker, eventually drag-and-drop) funnels through, so slot validation only
+// needs to live in one place: no duplicates, at most 2 entries, never empty.
+function normalizeSlots(slots: ViewKind[]): ViewKind[] {
+  const unique = [...new Set(slots)].slice(0, 2)
+  return unique.length > 0 ? unique : ['text']
+}
+
+const MIN_SPLIT_RATIO = 0.1
+function clampSplitRatio(ratio: number): number {
+  if (!Number.isFinite(ratio)) return 0.55
+  return Math.min(1 - MIN_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, ratio))
+}
+
+// A short, honest label for the active workspace - used only by
+// FeedbackWidget's diagnostic payload. Unlike the old legacyModeForSlots (Step
+// 2), this never silently mislabels a combination it doesn't specifically
+// recognize: only the one fixed pairing Topbar's toggle can still produce
+// ('text'+'nodes', labeled 'linear' for continuity with past reports) gets a
+// special name: everything else - including combinations no UI can reach yet
+// - reports its own accurate "kind" or "kind+kind" description.
+export function describeWorkspace(slots: ViewKind[]): string {
+  if (slots.length === 1) return slots[0]
+  if (slots.length === 2 && slots.includes('text') && slots.includes('nodes')) return 'linear'
+  return slots.join('+')
+}
 
 export interface ProjectMeta { id: string; name: string }
 
@@ -166,7 +205,12 @@ interface Store {
   // UI state
   selectedId: string | null
   focusMode: boolean
-  viewMode: ViewMode
+  workspace: WorkspaceState
+  // Shared ephemeral highlight: lets TextView and NodesView cross-reference
+  // each other (an anchor click highlights + scrolls to a node row, and vice
+  // versa) whenever both happen to be mounted, without needing a common
+  // parent to broker it. Not persisted.
+  highlightedNodeId: string | null
   // ─── Flow (ephemeral, never persisted) ──────────────────────────────────
   flowGlowIds: string[]        // 2–3 most-recently-edited nodes from last session
   flowGlowVisible: boolean     // true during the 8s glow window, then fades out
@@ -185,7 +229,10 @@ interface Store {
   // Data actions
   setSelected: (id: string | null) => void
   setFocusMode: (v: boolean) => void
-  setViewMode: (v: ViewMode) => void
+  // Registry-driven workspace: 1 or 2 independently-mountable slots.
+  setWorkspaceSlots: (slots: ViewKind[]) => void
+  setSplitRatio: (ratio: number) => void
+  setHighlightedNodeId: (id: string | null) => void
   setThesis: (t: string) => void
   setFocus: (id: string) => void
   setDraftText: (t: string) => void
@@ -238,7 +285,11 @@ export const useStore = create<Store>((set, get) => {
     _allProjects: all,
     selectedId: null,
     focusMode: true,
-    viewMode: 'linear',
+    // Reproduces the old default ('linear') exactly - a real two-slot
+    // Text+Nodes layout, split 55/45 as before, now genuinely independent
+    // and resizable rather than a hardcoded composition.
+    workspace: { slots: ['text', 'nodes'], splitRatio: 0.55 },
+    highlightedNodeId: null,
     flowGlowIds: [],
     flowGlowVisible: false,
     flowActive: false,
@@ -347,7 +398,9 @@ export const useStore = create<Store>((set, get) => {
 
     setSelected: (id) => set({ selectedId: id }),
     setFocusMode: (v) => set({ focusMode: v }),
-    setViewMode: (v) => set({ viewMode: v }),
+    setWorkspaceSlots: (slots) => set(s => ({ workspace: { ...s.workspace, slots: normalizeSlots(slots) } })),
+    setSplitRatio: (ratio) => set(s => ({ workspace: { ...s.workspace, splitRatio: clampSplitRatio(ratio) } })),
+    setHighlightedNodeId: (id) => set({ highlightedNodeId: id }),
     setThesis: (t) => set({ thesis: t }),
     setDraftText: (t) => set({ draftText: t }),
     setGreetingStyle: (s) => set({ greetingStyle: s }),
